@@ -1,0 +1,66 @@
+%        File: notes.tex
+%     Created: Sun Dec 04 08:00 AM 2011 P
+% Last Change: Sun Dec 04 08:00 AM 2011 P
+%
+\documentclass[a4paper]{article}
+
+\usepackage{amsmath}
+\usepackage{fullpage}
+
+\newcommand{\set}[1]{\left\{ #1 \right\}}
+
+\begin{document}
+The adjacency matrix $a$ of an undirected $N_v$-vertex graph $G$ has
+$N_v(N_v-1)/2$ independent (binary) entries. Define a binary string
+representation of $g$ of
+$G$
+\[
+g(G) \equiv a_{2,1} \cdots a_{N_v,1} a_{3,2} \cdots a_{N_v,2}
+\cdots a_{N_v,N_v-1}.
+\]
+
+Given a subset of $m$ vertices $S_{\alpha}=\set{v_1,\dots,v_m}$
+\[
+\mathcal{C}_{\alpha} \equiv
+\prod_{v_j, v_k \in S_{\alpha}}^{j \neq k} a_{v_j, v_k} =
+\begin{cases}
+  1 & S_\alpha \text{ is an $m$-clique} \\
+  0 & \text{otherwise.}
+\end{cases}
+\]
+Then the sum of $\mathcal{C}_{\alpha}$ over all $\rho=C(N_v,m)$ choices of $m$
+vertices
+\[
+\mathcal{C}(G) \equiv \sum_{\alpha=1}^{\rho} \mathcal{C}_{\alpha}
+\]
+counts the number of $m$-cliques in $G$.
+
+Similarly, given a subset of $n$ vertices $T_{\alpha}$, define
+\[
+\mathcal{I}_{\alpha} \equiv
+\sum_{v_j, v_k \in T_{\alpha}}^{j \neq k} a_{v_j, v_k} =
+\begin{cases}
+  0 & \mathcal{I}_{\alpha} \text{ is an $n$-independent set} \\
+  >0 & \text{otherwise.}
+\end{cases}
+\]
+Then the sum over all $\nu=C(N_v,n)$ choices of $n$ vertices
+\[
+\mathcal{I}(G) \equiv \sum_{\alpha=1}^{\nu} \delta_{0, \mathcal{I}_{\alpha}}
+\]
+counts the number of $n$-independent sets in $G$.
+
+Finally, define $h(G)$ as the total number of $m$-cliques and $n$-independent
+sets in $G$
+\[
+h(G) \equiv \mathcal{C}(G) + \mathcal{I}(G).
+\]
+The goal is to find the $N_v$-vertex graph $G^*$ such that $h(G^*)$ is the
+global minimum. Note that $h(G) \geq 0$ and
+\begin{align*}
+h(G^*) = 0 &\implies N_v < R(m,n) \\
+h(G^*) > 0 &\implies N_v \geq R(m,n).
+\end{align*}
+\end{document}
+
+
