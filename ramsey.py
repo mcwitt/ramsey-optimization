@@ -60,18 +60,34 @@ def sweep(a, n, m, beta):
         else:
             a[j,k] = not a[j,k]
 
-def sweep2(a, n, m, beta):
-    'Sweep with more efficient energy delta calculation'
-    verts = range(len(a))
-    e0 = energy(a, n, m)
-    for j, k in combinations(verts, 2):
-        a[j,k] = not a[j,k]
-        e1 = energy(a, n, m)
-        de = e1 - e0
-        if de < 0 or random.random() < exp(-beta*de):
-            e0 = e1
-        else:
-            a[j,k] = not a[j,k]
+def write_tex(a, out='graph.tex'):
+    f = file(out, 'w')
+    f.write(
+        '\\documentclass{article}\n'
+        '\\usepackage{tikz}\n'
+        '\\begin{document}\n'
+        '\\begin{tikzpicture}[scale=5]\n'
+    )
+
+    N = len(a)
+    for j in range(N):
+        x = cos(2*pi*j/N)
+        y = sin(2*pi*j/N)
+        f.write(r'\node (%d) at (%.2f,%.2f) {%d};' % (j, x, y, j+1))
+        f.write('\n')
+
+    for k in range(N):
+        for j in range(k):
+            if a[j,k]: color='red'
+            else: color='blue'
+            f.write(r'\draw[color=%s] (%d) -- (%d);' % (color, j, k))
+            f.write('\n')
+
+    f.write(
+      '\\end{tikzpicture}\n'
+      '\\end{document}\n'
+    )
+    f.close()
 
 def draw(a, out='graph.ps'):
     import pygraphviz as pgv
