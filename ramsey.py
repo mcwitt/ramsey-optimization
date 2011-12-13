@@ -89,6 +89,19 @@ def sweep2(a, n, m, beta):
         if de > 0 and random.random() > exp(-beta*de):
             a[j,k] = not a[j,k]
 
+def temper(copies, n, m, betas, nswaps):
+    'Attempt parallel tempering swaps'
+    
+    for iT in xrange(1, len(betas)):
+        a, b = copies[iT-1], copies[iT]
+        ba, bb = betas[iT-1], betas[iT]
+        Ea, Eb = energy(a,n,m), energy(b,n,m)
+        logar = (bb-ba)*(Ea-Eb)
+
+        if logar < 0 or random.random() < exp(logar):
+            copies[iT-1], copies[iT] = b, a
+            nswaps[iT] += 1
+
 def draw(a, out='graph'):
     'Make an EPS drawing of the graph'
     import pyx
@@ -106,4 +119,24 @@ def draw(a, out='graph'):
         c.fill(pyx.path.circle(x, y, 0.2), [pyx.color.rgb.black])
 
     c.writeEPSfile(out)
+
+def test():
+    temps = array(r_[0.01, 1:100.:11j])
+    betas = 1./temps
+    nswaps = zeros(12)
+    copies = []
+    for i in xrange(12):
+        copies.append(random.random((17,17)) < 0.5)
+
+    for i in xrange(1000):
+        for copy, beta in zip(copies, betas):
+            sweep2(copy, 4, 4, beta)
+            print '%f %3d' % (1./beta, energy(copy, 4, 4))
+        temper(copies, 4, 4, betas, nswaps)
+        if energy(copies[0], 4, 4) == 0:
+            break
+        print nswaps/(i+1.)
+        print '\n'
+
+
 
