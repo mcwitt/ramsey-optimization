@@ -60,50 +60,22 @@ def sweep(a, n, m, beta):
         else:
             a[j,k] = not a[j,k]
 
-def write_tex(a, out='graph.tex'):
-    f = file(out, 'w')
-    f.write(
-        '\\documentclass{article}\n'
-        '\\usepackage{tikz}\n'
-        '\\begin{document}\n'
-        '\\begin{tikzpicture}[scale=5]\n'
-    )
-
+def draw(a, out='graph'):
+    'Make an EPS drawing of the graph'
+    import pyx
+    c = pyx.canvas.canvas()
     N = len(a)
-    for j in range(N):
-        x = cos(2*pi*j/N)
-        y = sin(2*pi*j/N)
-        f.write(r'\node (%d) at (%.2f,%.2f) {%d};' % (j, x, y, j+1))
-        f.write('\n')
+    for k in xrange(N):
+        for j in xrange(k):
+            if a[j,k]: color=pyx.color.rgb.red
+            else: color=pyx.color.rgb.blue
+            coords = lambda j: (5*sin(2*pi*j/N), 5*cos(2*pi*j/N))
+            xj, yj = coords(j)
+            xk, yk = coords(k)
+            c.stroke(pyx.path.line(xj, yj, xk, yk), [color])
+    for k in xrange(N):
+        x, y = coords(k)
+        c.fill(pyx.path.circle(x, y, 0.2), [pyx.color.rgb.black])
 
-    for k in range(N):
-        for j in range(k):
-            if a[j,k]: color='red'
-            else: color='blue'
-            f.write(r'\draw[color=%s] (%d) -- (%d);' % (color, j, k))
-            f.write('\n')
+    c.writeEPSfile(out)
 
-    f.write(
-      '\\end{tikzpicture}\n'
-      '\\end{document}\n'
-    )
-    f.close()
-
-def draw(a, out='graph.ps'):
-    import pygraphviz as pgv
-    G = pgv.AGraph()
-    N = len(a)
-    for j in range(N):
-        G.add_node(j)
-    for k in range(N):
-        for j in range(k):
-            if a[j,k]:
-                color='red'
-            else:
-                color='blue'
-
-            G.add_edge(j, k, color=color)
-
-    G.node_attr['size']=0
-    G.node_attr['shape']='circle'
-    G.draw(out, prog='circo')
