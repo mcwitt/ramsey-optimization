@@ -7,6 +7,8 @@
 
 #define NT_MAX 16
 
+#define URAND() dsfmt_genrand_close_open(&dsfmt)
+
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -18,7 +20,7 @@ typedef unsigned long ULONG;
 /* Replica-specific variables ************************************************/
 typedef struct
 {
-    int am[NV][NV];   /* adjacency matrix */
+    int s[NV][NV];   /* adjacency matrix */
     int energy;
 } rep_t;
 
@@ -58,10 +60,15 @@ ULONG binomial(ULONG n, ULONG k)
 void init_reps(rep_t *reps, rep_t **preps)
 {
     rep_t *p;
-    int iT, j, k, e0;
+    int iT, j, k, e0, h0;
 
-    /* energy with all edges blue */
-    e0 = binomial(NV, R);
+    /* initialize each replica in a simple state with all edges blue */
+
+    /* local "field" at each edge in initial state */
+    h20 = binomial(NV-2, R-2);
+
+    /* total energy in initial state */
+    e0 = NV*(NV-1)/(R*(R-1))*h20;
 
     for (iT = 0; iT < nT; iT++)
     {
@@ -69,27 +76,54 @@ void init_reps(rep_t *reps, rep_t **preps)
         preps[iT] = p;
         p->energy = e0;
 
-        /* start with completely blue graph */
         for (j = 0; j < NV; j++) {
             for (k = 0; k < j; k++) {
-                p->am[j][k] = 1;
-                /* INITIALIZE NUMBER OF CLIQUES INVOLVING THIS EDGE */
+                p->s[j][k] = 1;
+                p->h2[j][k] = h20;
             }
         }
-
     }   /* end of loop over temperatures */
+}
+
+/* flip a spin and update fields */
+void flip(rep_t *p, int j, int k, int delta)
+{
+    p->energy += delta;
+
+    /* update local field at affected edges */
+    if ((p->s[j][k] *= -1) == 1)
+    {
+        /* DO UPDATE */
+        /* loop over combos of R vertices */
+        /* if a clique except for jk, add 1 */
+    }
+    else
+    {
+        /* same for combos of S vertices, subtract 1 */
+    }
 }
 
 void sweep(rep_t **preps)
 {
     rep_t *p;
-    double delta;
-    int iT;
+    int iT, j, k, delta;
 
     for (iT = 0; iT < nT; iT++)
     {
         p = preps[iT];
-    }
+        for (j = 0; j < NV; j++)
+        {
+            for (k = 0; k < j; k++)
+            {
+                /* compute energy difference of flip */
+                delta = p->s[j][k]*h2[j][k];
+
+                /* flip with Metropolis probability */
+                if (delta < 0 || URAND() < exp(mbeta[iT]*delta))
+                    flip(p, j, k, delta);
+            }
+        }
+    }   /* end of loop over temperatures */
 }
 
 int main(int argc, char *argv[])
