@@ -39,6 +39,7 @@ def clique_count(a, m):
     return count
 
 def restricted_clique_count(a, m, j, k):
+    'Count m-cliques involving vertices j, k'
     N = len(a)
     rverts = range(N)
     rverts.remove(j)
@@ -62,6 +63,7 @@ def energy(a, n, m):
     return clique_count(a, m) + clique_count(a==False, n)
 
 def restricted_energy(a, n, m, j, k):
+    'Only compute terms in the energy involving vertices j, k'
     return restricted_clique_count(a, m, j, k)\
             + restricted_clique_count(a==False, n, j, k)
 
@@ -88,6 +90,15 @@ def sweep2(a, n, m, beta):
         de = e1 - e0
         if de > 0 and random.random() > exp(-beta*de):
             a[j,k] = not a[j,k]
+
+def sweep3(a, n, m, beta):
+    verts = range(len(a))
+    for j, k in combinations(verts, 2):
+        rverts = list(verts)
+        rverts.remove(j)
+        rverts.remove(k)
+        for alpha in combinations(rverts, m)
+
 
 def temper(copies, n, m, betas, nswaps):
     'Attempt parallel tempering swaps'
@@ -137,6 +148,4 @@ def test():
             break
         print nswaps/(i+1.)
         print '\n'
-
-
 
