@@ -1,8 +1,7 @@
 /*
  * Undefined constants
  *      NV  : number of vertices
- *      R   : blue clique size
- *      S   : red clique size
+ *      S   : clique size
  */
 
 #define NT_MAX 16
@@ -14,8 +13,7 @@
 #include <math.h>
 #include "dSFMT.h"
 
-#define M R-2
-#define N S-2
+#define M S-2
 #define URAND() dsfmt_genrand_close_open(&rstate)
 typedef unsigned long ULONG;
 
@@ -23,11 +21,18 @@ typedef unsigned long ULONG;
 typedef struct
 {
     int s[NV][NV];  /* edge matrix (+1=blue, -1=red) */
-    int h2[NV][NV]; /* local fields */
+    int h2[NV][NV]; /* field */
     int energy;
 } rep_t;
 
 /* Global variables **********************************************************/
+
+int nsg;    /* number of subgraphs with S vertices (=binomial(N, S)) */
+int nsg_fe; /* " involving a given edge (=binomial(N-2, S-2)) */
+
+int *sub[NV][NV];   /* sub[i][j] is an array of subgraphs each containing S
+                       vertices and including the edge (i, j) */
+
 rep_t reps[NT_MAX]; /* storage for parallel tempering (PT) replicas */
 
 /* pointers to PT replicas in order of increasing temperature */
@@ -58,31 +63,50 @@ ULONG binomial(ULONG n, ULONG k)
     return r;
 }
 
+void init_globals()
+{
+    int j, k;
+
+    nsg = binomial(NV, S);
+    nsg_fe = S*(S-1.)/(NV*(NV-1.))*nsg; /* (=binomial(NV-2, S-2)) */
+    /* debug */
+    /* assert(nsg_fe==binomial(NV-2,S-2)); */
+
+    for (j = 0; j < NV; j++)
+        for (k = 0; k < j; k++)
+            sub[j][k] = (int*) malloc(nsg_fe * sizeof(int));
+
+    /* fill in values */
+
+}
+
+void free_globals()
+{
+    int i, j;
+
+    for (i = 0; i < NV; i++)
+        for (j = 0; j < NV; j++)
+            free(sub[i][j]);
+}
+
+/* initialize each replica with all spins +1 (i.e. all edges blue) */
 void init_reps(rep_t *reps, rep_t **preps)
 {
     rep_t *p;
-    int iT, j, k, ei, h2i;
-
-    /* initialize each replica in a simple state with all edges blue */
-
-    /* total energy in initial state */
-    ei = binomial(NV, R);
-
-    /* local "field" at each edge in initial state (=binomial(NV-2, R-2)) */
-    h2i = R*(R-1.)/(NV*(NV-1.))*ei;
+    int iT, j, k;
 
     for (iT = 0; iT < nT; iT++)
     {
         p = &reps[iT];
         preps[iT] = p;
-        p->energy = ei;
+        p->energy = nsg;
 
         for (j = 0; j < NV; j++)
         {
             for (k = 0; k < j; k++)
             {
                 p->s[j][k] = 1;
-                p->h2[j][k] = h2i;
+                p->h2[j][k] = nsg_fe;
             }
         }
     }   /* end of loop over temperatures */
@@ -91,57 +115,13 @@ void init_reps(rep_t *reps, rep_t **preps)
 /* flip a spin and update fields */
 void flip(rep_t *p, int j, int k, int delta)
 {
-    int l, m, isclique, a[M];
+    int l, m, a[M];
 
     p->energy += delta;
 
     /* update local field at affected edges */
     if ((p->s[j][k] *= -1) == 1)
     {
-        /* loop over all M = R-2 combinations of vertices excepting j and k */
-        for (i = 0; i < M; i++) a[i] = 0;
-        while (a[0] < NV)
-        {
-            for (i=0; i < M; i++)
-                printf("%d\n", a[i]);
-
-            /* test whether this combination is a clique except for edge jk */
-            isclique = true;
-            for (l = 0; l < M; l++)
-            {
-                /* THERE'S A PROBLEM HERE */
-                if (! (s[l][j] == 1 && s[l][k] == 1))
-                {
-                    isclique = false;
-                    break;
-                }
-                for (m = 0; m < l; m++)
-                {
-                    if (! (s[l][m] == 1))
-                    {
-                        isclique = false;
-                        break;
-                    }
-                }
-                if (! isclique) break;
-            }
-
-            if (isclique)
-            {
-                for (l = 0; l < M; l++)
-                {
-                    for (m = 0; m < l; m++)
-
-                }
-            }
-
-            for (i = M-1; i >= 0; i--)
-            {
-                while (++a[i]==j || a[i]==k);
-                if (a[i] < NV) break;
-                a[i] = 0;
-            }
-        }
     }
     else
     {
@@ -162,7 +142,7 @@ void sweep(rep_t **preps)
             for (k = 0; k < j; k++)
             {
                 /* compute energy difference of flip */
-                delta = p->s[j][k]*p->h[j][k];
+                delta = p->s[j][k]*p->h2[j][k];
 
                 /* flip with Metropolis probability */
                 if (delta < 0 || URAND() < exp(mbeta[iT]*delta))
@@ -176,9 +156,6 @@ int main(int argc, char *argv[])
 {
     FILE *infile;
     double t;
-
-    /* check compile-time parameters */
-    assert(R > S);
 
     if (argc != 3)
     {
@@ -197,6 +174,10 @@ int main(int argc, char *argv[])
         mbeta[nT] = 1./t;
         nT++;
     }
+
+    init_globals();
+    
+    free_globals();
 
     return EXIT_SUCCESS;
 }
