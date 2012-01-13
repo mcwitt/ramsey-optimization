@@ -13,15 +13,15 @@
 #include <math.h>
 #include "dSFMT.h"
 
-#define M S-2
 #define URAND() dsfmt_genrand_close_open(&rstate)
 typedef unsigned long ULONG;
 
 /* Replica-specific variables ************************************************/
 typedef struct
 {
-    int s[NV][NV];  /* edge matrix (+1=blue, -1=red) */
+    int s[NV][NV];  /* edge (spin) matrix (+1=blue, -1=red) */
     int h2[NV][NV]; /* field */
+    int *m;
     int energy;
 } rep_t;
 
@@ -65,19 +65,70 @@ ULONG binomial(ULONG n, ULONG k)
 
 void init_globals()
 {
-    int j, k;
+    int len[NV][NV];
+    int c[S+2];
+    int i, j, ci, cj, id;
 
     nsg = binomial(NV, S);
     nsg_fe = S*(S-1.)/(NV*(NV-1.))*nsg; /* (=binomial(NV-2, S-2)) */
     /* debug */
     /* assert(nsg_fe==binomial(NV-2,S-2)); */
 
-    for (j = 0; j < NV; j++)
-        for (k = 0; k < j; k++)
-            sub[j][k] = (int*) malloc(nsg_fe * sizeof(int));
+    /* initialize subgraph lists */
+    for (i = 0; i < NV; i++)
+    {
+        for (j = 0; j < i; j++)
+        {
+            sub[i][j] = (int*) malloc(nsg_fe * sizeof(int));
+            len[i][j] = 0;
+        }
+    }
 
-    /* fill in values */
+    /* 
+     * iterate over all subgraphs with S vertices
+     * ------------------------------------------------------------------------
+     * algorithm to generate combinations adapted from Algorithm L in Knuth's
+     * Art of Computer Programming Vol. 4, Fasc. 3 (all-caps labels
+     * correspond to labels in the book)
+     */
 
+    /* INITIALIZE */
+    c[S] = NV;
+    c[S+1] = 0;
+    for (i = 0; i < S; i++) c[i] = i;
+
+    id = 0;
+
+    while (1)
+    {
+        /* VISIT combination c_1 c_2 ... c_S */
+        /* (algorithm guarantees that c_1 < c_2 < ... < c_S) */
+        /* iterate over edges in this subgraph */
+        for (i = 0; i < S; i++)
+        {
+            for (j = 0; j < i; j++)
+            {
+                ci = c[i];
+                cj = c[j];
+
+                /* add subgraph to list for edge (i, j) */
+                sub[ci][cj][len[ci][cj]++] = id;
+            }
+        }
+
+        /* FIND j */
+        for (j = 0; j <= S; j++)
+        {
+            if (c[j] + 1 == c[j+1]) c[j] = j;
+            else break;
+        }
+
+        /* DONE? */
+        if (j == S) break;
+
+        c[j]++;
+        id++;   /* increment label for next combination */
+    }
 }
 
 void free_globals()
@@ -100,6 +151,7 @@ void init_reps(rep_t *reps, rep_t **preps)
         p = &reps[iT];
         preps[iT] = p;
         p->energy = nsg;
+        p->m = (int*) malloc(nsg * sizeof(int));
 
         for (j = 0; j < NV; j++)
         {
@@ -112,20 +164,28 @@ void init_reps(rep_t *reps, rep_t **preps)
     }   /* end of loop over temperatures */
 }
 
+void free_reps()
+{
+    int iT;
+
+    for (iT = 0; iT < nT; iT++)
+        free(reps[iT].m);
+}
+
 /* flip a spin and update fields */
 void flip(rep_t *p, int j, int k, int delta)
 {
-    int l, m, a[M];
-
     p->energy += delta;
 
     /* update local field at affected edges */
+
     if ((p->s[j][k] *= -1) == 1)
     {
-    }
-    else
-    {
-        /* same for combos of S vertices, subtract 1 */
+        for (i = 0; i < nsg; i++)
+            if (++p->m[sub[j][k][i]] == S)
+            {
+                /* flip has created a new blue clique */
+            }
     }
 }
 
