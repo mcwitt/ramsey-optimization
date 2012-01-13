@@ -20,6 +20,7 @@ typedef unsigned long ULONG;
 typedef struct
 {
     int s[NV][NV];  /* edge (spin) matrix (+1=blue, -1=red) */
+    int h2[NV][NV]; /* field */
     int *m;
     int energy;
 } rep_t;
@@ -152,13 +153,15 @@ void init_reps(rep_t *reps, rep_t **preps)
         p->energy = nsg;
         p->m = (int*) malloc(nsg * sizeof(int));
 
-        for (j = 0; j < nsg; j++)
-            p->m[j] = S/2;
-
         for (j = 0; j < NV; j++)
+        {
             for (k = 0; k < j; k++)
+            {
                 p->s[j][k] = 1;
-    }
+                p->h2[j][k] = nsg_fe;
+            }
+        }
+    }   /* end of loop over temperatures */
 }
 
 void free_reps()
@@ -169,17 +172,21 @@ void free_reps()
         free(reps[iT].m);
 }
 
-int h2(rep_t *p, int j, int k)
+/* flip a spin and update fields */
+void flip(rep_t *p, int j, int k, int delta)
 {
-    int i, h2;
-    int *subjk;
+    p->energy += delta;
 
-    subjk = sub[j][k]; 
+    /* update local field at affected edges */
 
-    for (i = 0; i < nsg_fe; i++)
-        if (p->m[subjk[i]] + 1 == S)
-            /* ........... */
-
+    if ((p->s[j][k] *= -1) == 1)
+    {
+        for (i = 0; i < nsg; i++)
+            if (++p->m[sub[j][k][i]] == S)
+            {
+                /* flip has created a new blue clique */
+            }
+    }
 }
 
 void sweep(rep_t **preps)
@@ -195,14 +202,11 @@ void sweep(rep_t **preps)
             for (k = 0; k < j; k++)
             {
                 /* compute energy difference of flip */
-                delta = p->s[j][k]*h2(p, j, k);
+                delta = p->s[j][k]*p->h2[j][k];
 
                 /* flip with Metropolis probability */
                 if (delta < 0 || URAND() < exp(mbeta[iT]*delta))
-                {
-                    p->energy += delta;
-                    p->s[j][k] *= -1;
-                }
+                    flip(p, j, k, delta);
             }
         }
     }   /* end of loop over temperatures */
