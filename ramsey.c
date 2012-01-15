@@ -4,7 +4,7 @@
  *      S   : clique size
  */
 
-#define NT_MAX 16
+#define NT_MAX 32
 
 #include <stdlib.h>
 #include <stdint.h>
@@ -20,7 +20,7 @@ typedef unsigned long ULONG;
 typedef struct
 {
     int s[NV][NV];  /* edge (spin) matrix (+1=blue, -1=red) */
-    int *m;
+    int *nb;
     int energy;
 } rep_t;
 
@@ -66,7 +66,7 @@ void init_globals()
 {
     int len[NV][NV];
     int c[S+2];
-    int i, j, ci, cj, id;
+    int j, k, cj, ck, id;
 
     nsg = binomial(NV, S);
     nsg_fe = S*(S-1.)/(NV*(NV-1.))*nsg; /* (=binomial(NV-2, S-2)) */
@@ -74,12 +74,12 @@ void init_globals()
     /* assert(nsg_fe==binomial(NV-2,S-2)); */
 
     /* initialize subgraph lists */
-    for (i = 0; i < NV; i++)
+    for (k = 0; k < NV; k++)
     {
-        for (j = 0; j < i; j++)
+        for (j = 0; j < k; j++)
         {
-            sub[i][j] = (int*) malloc(nsg_fe * sizeof(int));
-            len[i][j] = 0;
+            sub[j][k] = (int*) malloc(nsg_fe * sizeof(int));
+            len[j][k] = 0;
         }
     }
 
@@ -94,7 +94,7 @@ void init_globals()
     /* INITIALIZE */
     c[S] = NV;
     c[S+1] = 0;
-    for (i = 0; i < S; i++) c[i] = i;
+    for (j = 0; j < S; j++) c[j] = j;
 
     id = 0;
 
@@ -103,17 +103,19 @@ void init_globals()
         /* VISIT combination c_1 c_2 ... c_S */
         /* (algorithm guarantees that c_1 < c_2 < ... < c_S) */
         /* iterate over edges in this subgraph */
-        for (i = 0; i < S; i++)
+        for (k = 0; k < S; k++)
         {
-            for (j = 0; j < i; j++)
+            for (j = 0; j < k; j++)
             {
-                ci = c[i];
                 cj = c[j];
+                ck = c[k];
 
                 /* add subgraph to list for edge (i, j) */
-                sub[ci][cj][len[ci][cj]++] = id;
+                sub[cj][ck][len[cj][ck]++] = id;
             }
         }
+
+        id++;   /* increment label for next combination */
 
         /* FIND j */
         for (j = 0; j <= S; j++)
@@ -126,21 +128,22 @@ void init_globals()
         if (j == S) break;
 
         c[j]++;
-        id++;   /* increment label for next combination */
     }
 }
 
 void free_globals()
 {
-    int i, j;
+    int j, k;
 
-    for (i = 0; i < NV; i++)
-        for (j = 0; j < NV; j++)
-            free(sub[i][j]);
+    for (k = 0; k < NV; k++)
+        for (j = 0; j < k; j++)
+            free(sub[j][k]);
 }
 
 /* initialize each replica with all spins +1 (i.e. all edges blue) */
-void init_reps(rep_t *reps, rep_t **preps)
+void flip(rep_t *p, int j, int k, int delta);
+int flip_energy(int s, int *sub, int *nb);
+void init_reps()
 {
     rep_t *p;
     int iT, j, k;
@@ -150,14 +153,19 @@ void init_reps(rep_t *reps, rep_t **preps)
         p = &reps[iT];
         preps[iT] = p;
         p->energy = nsg;
-        p->m = (int*) malloc(nsg * sizeof(int));
+        p->nb = (int*) malloc(nsg * sizeof(int));
 
         for (j = 0; j < nsg; j++)
-            p->m[j] = S/2;
+            p->nb[j] = S;
 
-        for (j = 0; j < NV; j++)
-            for (k = 0; k < j; k++)
+        for (k = 0; k < NV; k++)
+            for (j = 0; j < k; j++)
+            {
                 p->s[j][k] = 1;
+                if (URAND() < 0.5)
+                    flip(p, j, k, flip_energy(1, sub[j][k], p->nb));
+            }
+
     }
 }
 
@@ -166,23 +174,49 @@ void free_reps()
     int iT;
 
     for (iT = 0; iT < nT; iT++)
-        free(reps[iT].m);
+        free(reps[iT].nb);
 }
 
-int h2(rep_t *p, int j, int k)
+int flip_energy(int s, int *sub, int *nb)
 {
-    int i, h2;
-    int *subjk;
+    int i, nbi, delta;
 
-    subjk = sub[j][k]; 
+    delta = 0;
+
+    if (s == 1)
+    {
+        for (i = 0; i < nsg_fe; i++)
+        {
+            nbi = nb[sub[i]];
+            if (nbi == S) delta--;
+            else if (nbi == 1) delta++;
+        }
+    }
+    else
+    {
+        for (i = 0; i < nsg_fe; i++)
+        {
+            nbi = nb[sub[i]];
+            if (nbi == 0) delta--;
+            else if (nbi == S - 1) delta++;
+        }
+    }
+
+    return delta;
+}
+
+void flip(rep_t *p, int j, int k, int delta)
+{
+    int i;
+
+    p->energy += delta;
+    p->s[j][k] *= -1;
 
     for (i = 0; i < nsg_fe; i++)
-        if (p->m[subjk[i]] + 1 == S)
-            /* ........... */
-
+        p->nb[sub[j][k][i]] += p->s[j][k];
 }
 
-void sweep(rep_t **preps)
+void sweep()
 {
     rep_t *p;
     int iT, j, k, delta;
@@ -190,22 +224,86 @@ void sweep(rep_t **preps)
     for (iT = 0; iT < nT; iT++)
     {
         p = preps[iT];
-        for (j = 0; j < NV; j++)
+        for (k = 0; k < NV; k++)
         {
-            for (k = 0; k < j; k++)
+            for (j = 0; j < k; j++)
             {
                 /* compute energy difference of flip */
-                delta = p->s[j][k]*h2(p, j, k);
+                delta = flip_energy(p->s[j][k], sub[j][k], p->nb);
 
                 /* flip with Metropolis probability */
-                if (delta < 0 || URAND() < exp(mbeta[iT]*delta))
-                {
-                    p->energy += delta;
-                    p->s[j][k] *= -1;
-                }
+                if (delta <= 0 || URAND() < exp(mbeta[iT]*delta))
+                    flip(p, j, k, delta);
             }
         }
     }   /* end of loop over temperatures */
+}
+
+void temper()
+{
+    rep_t *pl, *pr;
+    double logar;
+    int iT;
+
+    for (iT = 1; iT < nT; iT++)
+    {
+        pl = preps[iT-1];
+        pr = preps[iT];
+
+        /* compute log of acceptance ratio for swap */
+        logar = (mbeta[iT]-mbeta[iT-1])*(pl->energy-pr->energy);
+
+        if (URAND() < exp(logar))
+        {
+            /* do PT swap (swap entries iT and iT-1 in preps) */
+            preps[iT-1] = pr;
+            preps[iT] = pl;
+            nswaps[iT]++;
+        }
+    }
+}
+
+void run()
+{
+    int iT, nsweeps, done;
+
+    nsweeps = 0;
+    done = 0;
+
+    while (! done)
+    {
+        sweep();
+
+        if (nsweeps % 10 == 0)
+        {
+            temper();
+
+            if (nsweeps % 20 == 0)
+            {
+            for (iT=0; iT<nT; iT++)
+                printf("%3d ", preps[iT]->energy);
+            for (iT=1; iT<nT; iT++)
+                printf("%3.2f ", (float) nswaps[iT]/nsweeps);
+
+            printf("\n");
+            }
+
+        }
+
+
+        for (iT = 0; iT < nT; iT++)
+        {
+            if (preps[iT]->energy == 0)
+            {
+                printf("Found zero-energy ground state\n");
+                printf("%d\n", nsweeps);
+                done = 1;
+                break;
+            }
+        }
+
+        nsweeps++;
+    }
 }
 
 int main(int argc, char *argv[])
@@ -219,7 +317,10 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
+
+    /* init random number generator */
     rseed = atoi(argv[2]);
+    dsfmt_init_gen_rand(&rstate, rseed);
 
     /* read temperatures from input file */
     nT = 0;
@@ -227,12 +328,18 @@ int main(int argc, char *argv[])
     while (fscanf(infile, "%lf", &t) != EOF)
     {
         T[nT] = t;
-        mbeta[nT] = 1./t;
+        mbeta[nT] = -1./t;
         nT++;
     }
+    
+    assert(1 < nT && nT < NT_MAX);
 
     init_globals();
+    init_reps();
+
+    run();
     
+    free_reps();
     free_globals();
 
     return EXIT_SUCCESS;
