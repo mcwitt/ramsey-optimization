@@ -26,6 +26,7 @@ typedef struct
 
 /* Global variables **********************************************************/
 
+int nec;    /* number of edges in an S-clique (=S(S-1)/2) */
 int nsg;    /* number of subgraphs with S vertices (=binomial(N, S)) */
 int nsg_fe; /* " involving a given edge (=binomial(N-2, S-2)) */
 
@@ -44,6 +45,9 @@ double mbeta[NT_MAX];   /* negative inverse temperatures */
 
 dsfmt_t rstate; /* state of random number generator (RNG) */
 uint32_t rseed; /* seed used to initialize RNG */
+
+/* include debugging functions */
+#include "debug.c"
 
 /* binomial coefficient */
 ULONG binomial(ULONG n, ULONG k)
@@ -68,10 +72,9 @@ void init_globals()
     int c[S+2];
     int j, k, cj, ck, id;
 
+    nec = S*(S-1)/2;
     nsg = binomial(NV, S);
     nsg_fe = S*(S-1.)/(NV*(NV-1.))*nsg; /* (=binomial(NV-2, S-2)) */
-    /* debug */
-    /* assert(nsg_fe==binomial(NV-2,S-2)); */
 
     /* initialize subgraph lists */
     for (k = 0; k < NV; k++)
@@ -140,9 +143,46 @@ void free_globals()
             free(sub[j][k]);
 }
 
+int flip_energy(int s, int *sub, int *nb)
+{
+    int i, nbi, delta;
+
+    delta = 0;
+
+    if (s == 1)
+    {
+        for (i = 0; i < nsg_fe; i++)
+        {
+            nbi = nb[sub[i]];
+            if (nbi == nec) delta--;
+            else if (nbi == 1) delta++;
+        }
+    }
+    else
+    {
+        for (i = 0; i < nsg_fe; i++)
+        {
+            nbi = nb[sub[i]];
+            if (nbi == 0) delta--;
+            else if (nbi == nec - 1) delta++;
+        }
+    }
+
+    return delta;
+}
+
+void flip(rep_t *p, int j, int k, int delta)
+{
+    int i;
+
+    p->energy += delta;
+    p->s[j][k] *= -1;
+
+    for (i = 0; i < nsg_fe; i++)
+        p->nb[sub[j][k][i]] += p->s[j][k];
+}
+
 /* initialize each replica with all spins +1 (i.e. all edges blue) */
-void flip(rep_t *p, int j, int k, int delta);
-int flip_energy(int s, int *sub, int *nb);
 void init_reps()
 {
     rep_t *p;
@@ -156,7 +196,7 @@ void init_reps()
         p->nb = (int*) malloc(nsg * sizeof(int));
 
         for (j = 0; j < nsg; j++)
-            p->nb[j] = S;
+            p->nb[j] = nec;
 
         for (k = 0; k < NV; k++)
             for (j = 0; j < k; j++)
@@ -176,46 +216,6 @@ void free_reps()
     for (iT = 0; iT < nT; iT++)
         free(reps[iT].nb);
 }
-
-int flip_energy(int s, int *sub, int *nb)
-{
-    int i, nbi, delta;
-
-    delta = 0;
-
-    if (s == 1)
-    {
-        for (i = 0; i < nsg_fe; i++)
-        {
-            nbi = nb[sub[i]];
-            if (nbi == S) delta--;
-            else if (nbi == 1) delta++;
-        }
-    }
-    else
-    {
-        for (i = 0; i < nsg_fe; i++)
-        {
-            nbi = nb[sub[i]];
-            if (nbi == 0) delta--;
-            else if (nbi == S - 1) delta++;
-        }
-    }
-
-    return delta;
-}
-
-void flip(rep_t *p, int j, int k, int delta)
-{
-    int i;
-
-    p->energy += delta;
-    p->s[j][k] *= -1;
-
-    for (i = 0; i < nsg_fe; i++)
-        p->nb[sub[j][k][i]] += p->s[j][k];
-}
-
 void sweep()
 {
     rep_t *p;
@@ -236,6 +236,8 @@ void sweep()
                     flip(p, j, k, delta);
             }
         }
+        /*printf("%d\t%d\n",debug_energy(p->s),p->energy);
+        assert(debug_energy(p->s) == p->energy);*/
     }   /* end of loop over temperatures */
 }
 
@@ -263,6 +265,22 @@ void temper()
     }
 }
 
+void write(int s[NV][NV], char filename[])
+{
+    FILE *fp;
+    int j, k;
+
+    fp = fopen(filename, "w");
+
+    fprintf(fp, "%d\n", NV);
+
+    for (k = 0; k < NV; k++)
+        for (j = 0; j < k; j++)
+            fprintf(fp, "%d\n", (s[j][k] == 1) ? 1 : 0);
+
+    fclose(fp);
+}
+
 void run()
 {
     int iT, nsweeps, done;
@@ -273,21 +291,17 @@ void run()
     while (! done)
     {
         sweep();
+        temper();
 
         if (nsweeps % 10 == 0)
         {
-            temper();
 
-            if (nsweeps % 20 == 0)
-            {
             for (iT=0; iT<nT; iT++)
                 printf("%3d ", preps[iT]->energy);
             for (iT=1; iT<nT; iT++)
                 printf("%3.2f ", (float) nswaps[iT]/nsweeps);
 
             printf("\n");
-            }
-
         }
 
 
@@ -297,6 +311,7 @@ void run()
             {
                 printf("Found zero-energy ground state\n");
                 printf("%d\n", nsweeps);
+                write(preps[iT]->s, "zero.data");
                 done = 1;
                 break;
             }
