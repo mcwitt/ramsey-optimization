@@ -24,7 +24,7 @@ typedef struct
     /* for j < k, s[j][k] = 1 if edge (j, k) is blue, -1 if edge is red */
 
     int *nb;        /* number of blue edges in each S-subgraph */
-    int energy;     /* number of red S-cliques and blue S-cliques */
+    int energy;     /* number of blue S-cliques and red S-cliques */
 } rep_t;
 
 /* Global variables **********************************************************/
@@ -134,7 +134,7 @@ void init_globals()
             }
         }
 
-        id++;   /* increment label for next combination */
+        id++;   /* finished with this subgraph, increment label */
 
         /* FIND j */
         j = 0;
@@ -219,7 +219,6 @@ void init_reps()
                 }
             }
         }
-        assert(debug_energy(p->s) == p->energy);
     }
 }
 
