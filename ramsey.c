@@ -4,13 +4,14 @@
  *      S   : clique size
  */
 
-#define NT_MAX 32
+#define NT_MAX 24
 
-#include <stdlib.h>
-#include <stdint.h>
-#include <stdio.h>
+#include <assert.h>
 #include <limits.h>
 #include <math.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include "dSFMT.h"
 
 #define URAND() dsfmt_genrand_close_open(&rstate)
@@ -19,19 +20,25 @@ typedef unsigned long ULONG;
 /* Replica-specific variables ************************************************/
 typedef struct
 {
-    int s[NV][NV];  /* edge (spin) matrix (+1=blue, -1=red) */
-    int *nb;
-    int energy;
+    int s[NV][NV];  
+    /* for j < k, s[j][k] = 1 if edge (j, k) is blue, -1 if edge is red */
+
+    int *nb;        /* number of blue edges in each S-subgraph */
+    int energy;     /* number of red S-cliques and blue S-cliques */
 } rep_t;
 
 /* Global variables **********************************************************/
 
-int nec;    /* number of edges in an S-clique (=S(S-1)/2) */
+int ned;    /* number of edges in an S-subgraph (=S(S-1)/2) */
+int nedm1;  /* ned minus one */
 int nsg;    /* number of subgraphs with S vertices (=binomial(N, S)) */
-int nsg_fe; /* " involving a given edge (=binomial(N-2, S-2)) */
+int nsgfe;  /* number of subgraphs including a given edge */
 
-int *sub[NV][NV];   /* sub[i][j] is an array of subgraphs each containing S
-                       vertices and including the edge (i, j) */
+int *sub[NV][NV];   
+/*
+ * for j < k, sub[j][k] is an array of length nsgfe containing the labels of
+ * all subgraphs with S vertices that include the edge (j, k)
+ */
 
 rep_t reps[NT_MAX]; /* storage for parallel tempering (PT) replicas */
 
@@ -54,6 +61,8 @@ ULONG binomial(ULONG n, ULONG k)
 {
     ULONG r = 1, d = n - k; 
 
+    /*if (k > n) return 0;*/
+
     /* choose the smaller of k and n-k */
     if (d > k) { k = d; d = n - k; }
     while (n > k)
@@ -68,43 +77,50 @@ ULONG binomial(ULONG n, ULONG k)
 
 void init_globals()
 {
-    int len[NV][NV];
-    int c[S+2];
-    int j, k, cj, ck, id;
+    int len[NV][NV];    /* positions in subgraph arrays */
+    int c[S+2];         /* array of vertices of the current subgraph */
+    int id;             /* subgraph label */
+    int j, k;
+    int cj, ck;
 
-    nec = S*(S-1)/2;
+    ned = S*(S-1)/2;
+    nedm1 = ned - 1;
     nsg = binomial(NV, S);
-    nsg_fe = S*(S-1.)/(NV*(NV-1.))*nsg; /* (=binomial(NV-2, S-2)) */
+    nsgfe = S*(S-1.)/(NV*(NV-1.))*nsg; /* (=binomial(NV-2, S-2)) */
 
-    /* initialize subgraph lists */
+    /* initialize subgraph arrays */
     for (k = 0; k < NV; k++)
     {
         for (j = 0; j < k; j++)
         {
-            sub[j][k] = (int*) malloc(nsg_fe * sizeof(int));
+            sub[j][k] = (int*) malloc(nsgfe * sizeof(int));
             len[j][k] = 0;
         }
     }
 
     /* 
      * iterate over all subgraphs with S vertices
-     * ------------------------------------------------------------------------
+     */
+
+    /*
      * algorithm to generate combinations adapted from Algorithm L in Knuth's
      * Art of Computer Programming Vol. 4, Fasc. 3 (all-caps labels
      * correspond to labels in the book)
      */
 
     /* INITIALIZE */
+    id = 0;
     c[S] = NV;
     c[S+1] = 0;
     for (j = 0; j < S; j++) c[j] = j;
 
-    id = 0;
-
     while (1)
     {
-        /* VISIT combination c_1 c_2 ... c_S */
-        /* (algorithm guarantees that c_1 < c_2 < ... < c_S) */
+        /*
+         * VISIT combination c_1 c_2 ... c_S
+         * (algorithm guarantees that c_1 < c_2 < ... < c_S)
+         */
+
         /* iterate over edges in this subgraph */
         for (k = 0; k < S; k++)
         {
@@ -121,11 +137,8 @@ void init_globals()
         id++;   /* increment label for next combination */
 
         /* FIND j */
-        for (j = 0; j <= S; j++)
-        {
-            if (c[j] + 1 == c[j+1]) c[j] = j;
-            else break;
-        }
+        j = 0;
+        while (c[j] + 1 == c[j+1]) { c[j] = j; j++; }
 
         /* DONE? */
         if (j == S) break;
@@ -151,38 +164,34 @@ int flip_energy(int s, int *sub, int *nb)
 
     if (s == 1)
     {
-        for (i = 0; i < nsg_fe; i++)
+        for (i = 0; i < nsgfe; i++)
         {
             nbi = nb[sub[i]];
-            if (nbi == nec) delta--;
+            if (nbi == ned) delta--;
             else if (nbi == 1) delta++;
         }
     }
     else
     {
-        for (i = 0; i < nsg_fe; i++)
+        for (i = 0; i < nsgfe; i++)
         {
             nbi = nb[sub[i]];
             if (nbi == 0) delta--;
-            else if (nbi == nec - 1) delta++;
+            else if (nbi == nedm1) delta++;
         }
     }
 
     return delta;
 }
 
-void flip(rep_t *p, int j, int k, int delta)
+void update_nb(int s, int *sub, int *nb)
 {
     int i;
 
-    p->energy += delta;
-    p->s[j][k] *= -1;
-
-    for (i = 0; i < nsg_fe; i++)
-        p->nb[sub[j][k][i]] += p->s[j][k];
+    for (i = 0; i < nsgfe; i++) nb[sub[i]] += s;
 }
 
-/* initialize each replica with all spins +1 (i.e. all edges blue) */
+/* initialize each replica with a random configuration */
 void init_reps()
 {
     rep_t *p;
@@ -195,17 +204,22 @@ void init_reps()
         p->energy = nsg;
         p->nb = (int*) malloc(nsg * sizeof(int));
 
-        for (j = 0; j < nsg; j++)
-            p->nb[j] = nec;
+        for (j = 0; j < nsg; j++) p->nb[j] = ned;
 
         for (k = 0; k < NV; k++)
+        {
             for (j = 0; j < k; j++)
             {
-                p->s[j][k] = 1;
-                if (URAND() < 0.5)
-                    flip(p, j, k, flip_energy(1, sub[j][k], p->nb));
+                if (URAND() > 0.5) p->s[j][k] = 1;
+                else
+                {
+                    p->s[j][k] = -1;
+                    p->energy += flip_energy(1, sub[j][k], p->nb);
+                    update_nb(-1, sub[j][k], p->nb);
+                }
             }
-
+        }
+        assert(debug_energy(p->s) == p->energy);
     }
 }
 
@@ -233,11 +247,13 @@ void sweep()
 
                 /* flip with Metropolis probability */
                 if (delta <= 0 || URAND() < exp(mbeta[iT]*delta))
-                    flip(p, j, k, delta);
+                {
+                    p->energy += delta;
+                    update_nb(p->s[j][k] *= -1, sub[j][k], p->nb);
+                }
             }
         }
-        /*printf("%d\t%d\n",debug_energy(p->s),p->energy);
-        assert(debug_energy(p->s) == p->energy);*/
+        assert(debug_energy(p->s) == p->energy);
     }   /* end of loop over temperatures */
 }
 
@@ -273,6 +289,8 @@ void write(int s[NV][NV], char filename[])
     fp = fopen(filename, "w");
 
     fprintf(fp, "%d\n", NV);
+    fprintf(fp, "%d\n", S);
+    fprintf(fp, "%d\n", S);
 
     for (k = 0; k < NV; k++)
         for (j = 0; j < k; j++)
