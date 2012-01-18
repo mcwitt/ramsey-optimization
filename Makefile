@@ -8,5 +8,8 @@ OBJECTS = dSFMT.o
 
 .PHONY: ramsey
 
-ramsey: ramsey.c dSFMT.o
+ramsey_dbg: ramsey.c dSFMT.o
 	gcc -g -DDEBUG -DNV=$(NV) -DS=$S -o $@_$S-$S-$(NV).out $^ $(CFLAGS)
+
+ramsey: ramsey.c dSFMT.o
+	gcc -g -DNV=$(NV) -DS=$S -o $@_$S-$S-$(NV).out $^ $(CFLAGS)
