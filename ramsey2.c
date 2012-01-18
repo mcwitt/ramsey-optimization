@@ -1,11 +1,14 @@
 /*
- * To compile, run python compile.py
+ * To compile, run python compile2.py
  *
- * Undefined constants (computed by compile.py)
+ * Undefined constants (computed by compile2.py)
  *      NV      : number of vertices
- *      S       : clique size
- *      NSG     : number of subgraphs with S vertices (=binomial(NV, S))
- *      NSGFE   : number of subgraphs with S vertices including a given edge
+ *      R       : red clique size
+ *      S       : blue clique size
+ *      NSGR    : number of subgraphs with R vertices (=binomial(NV, S))
+ *      NSGS    : number of subgraphs with S vertices (=binomial(NV, S))
+ *      NSGFER  : number of subgraphs with S vertices including a given edge
+ *      NSGFES  : number of subgraphs with S vertices including a given edge
  *                  (=binomial(NV-2, S-2))
  */
 
@@ -30,19 +33,23 @@ typedef struct
     int sp[NV][NV];  
     /* for j < k, sp[j][k] = 1 if edge (j, k) is blue, -1 if edge is red */
 
-    int nb[NSG];    /* number of blue edges in each S-subgraph */
-    int energy;     /* number of blue S-cliques and red S-cliques */
+    int nbr[NSGR];  /* number of blue edges in each R-subgraph */
+    int nbs[NSGS];  /* number of blue edges in each S-subgraph */
+    int energy;     /* number of blue S-cliques and red R-cliques */
 } rep_t;
 
 /* Global variables **********************************************************/
 
-int ned;    /* number of edges in an S-subgraph (=S(S-1)/2) */
-int nedm1;  /* ned minus one */
+int nedr;    /* number of edges in an R-subgraph (=S(S-1)/2) */
+int neds;    /* number of edges in an S-subgraph (=S(S-1)/2) */
+int nedrm1;  /* nedr minus one */
+int nedsm1;  /* neds minus one */
 
-int *sub[NV][NV];
+int *subr[NV][NV];
+int *subs[NV][NV];
 /*
- * for j < k, sub[j][k] is an array of length NSGFE containing the labels of
- * all subgraphs with S vertices that include the edge (j, k)
+ * for j < k, subs[j][k] (subr[j][k]) is an array of length NSGFE containing
+ * the labels of all subgraphs with S (R) vertices that include the edge (j, k)
  */
 
 rep_t reps[MAX_NT]; /* storage for parallel tempering (PT) replicas */
@@ -60,10 +67,10 @@ dsfmt_t rstate; /* state of random number generator (RNG) */
 uint32_t rseed; /* seed used to initialize RNG */
 
 
-void init_subgraph_table()
+void init_subgraph_table(int *sub[NV][NV], int t, int nsgfe)
 {
     int len[NV][NV];    /* positions in subgraph arrays */
-    int c[S+2];         /* array of vertices of the current subgraph */
+    int c[t+2];         /* array of vertices of the current subgraph */
     int id;             /* subgraph label */
     int j, k;
     int cj, ck;
@@ -73,13 +80,13 @@ void init_subgraph_table()
     {
         for (j = 0; j < k; j++)
         {
-            sub[j][k] = (int*) malloc(NSGFE * sizeof(int));
+            sub[j][k] = (int*) malloc(nsgfe * sizeof(int));
             len[j][k] = 0;
         }
     }
 
     /* 
-     * iterate over all subgraphs with S vertices
+     * iterate over all subgraphs with t vertices
      */
 
     /*
@@ -90,19 +97,19 @@ void init_subgraph_table()
 
     /* INITIALIZE */
     id = 0;
-    c[S] = NV;
-    c[S+1] = 0;
-    for (j = 0; j < S; j++) c[j] = j;
+    c[t] = NV;
+    c[t+1] = 0;
+    for (j = 0; j < t; j++) c[j] = j;
 
     while (1)
     {
         /*
-         * VISIT combination c_1 c_2 ... c_S
-         * (algorithm guarantees that c_1 < c_2 < ... < c_S)
+         * VISIT combination c_1 c_2 ... c_t
+         * (algorithm guarantees that c_1 < c_2 < ... < c_t)
          */
 
         /* iterate over edges in this subgraph */
-        for (k = 0; k < S; k++)
+        for (k = 0; k < t; k++)
         {
             for (j = 0; j < k; j++)
             {
@@ -121,13 +128,13 @@ void init_subgraph_table()
         while (c[j] + 1 == c[j+1]) { c[j] = j; j++; }
 
         /* DONE? */
-        if (j == S) break;
+        if (j == t) break;
 
         c[j]++;
     }
 }
 
-void free_subgraph_table()
+void free_subgraph_table(int *sub[NV][NV])
 {
     int j, k;
 
@@ -136,39 +143,36 @@ void free_subgraph_table()
             free(sub[j][k]);
 }
 
-int flip_energy(int sp, int *sub, int *nb)
+int flip_energy(int sp, int *subr, int *subs, int *nbr, int *nbs)
 {
-    int i, nbi, delta;
+    int i, delta;
 
     delta = 0;
 
     if (sp == 1)
     {
-        for (i = 0; i < NSGFE; i++)
-        {
-            nbi = nb[sub[i]];
-            if (nbi == ned) delta--;
-            else if (nbi == 1) delta++;
-        }
+        for (i = 0; i < NSGFER; i++)
+            if (nbr[subr[i]] == 1) delta++;
+        for (i = 0; i < NSGFES; i++)
+            if (nbs[subs[i]] == neds) delta--;
     }
     else
     {
-        for (i = 0; i < NSGFE; i++)
-        {
-            nbi = nb[sub[i]];
-            if (nbi == 0) delta--;
-            else if (nbi == nedm1) delta++;
-        }
+        for (i = 0; i < NSGFER; i++)
+            if (nbr[subr[i]] == 0) delta--;
+        for (i = 0; i < NSGFES; i++)
+            if (nbs[subs[i]] == nedsm1) delta++;
     }
 
     return delta;
 }
 
-void update_nb(int sp, int *sub, int *nb)
+void update_nb(int sp, int *subr, int *subs, int *nbr, int *nbs)
 {
     int i;
 
-    for (i = 0; i < NSGFE; i++) nb[sub[i]] += sp;
+    for (i = 0; i < NSGFER; i++) nbr[subr[i]] += sp;
+    for (i = 0; i < NSGFES; i++) nbs[subs[i]] += sp;
 }
 
 /* initialize each replica in a random configuration */
@@ -181,10 +185,11 @@ void init_replicas()
     {
         ri[it] = it;
         p = &reps[it];
-        p->energy = NSG;
+        p->energy = NSGS;
         nswaps[it] = 0;
 
-        for (j = 0; j < NSG; j++) p->nb[j] = ned;
+        for (j = 0; j < NSGR; j++) p->nbr[j] = nedr;
+        for (j = 0; j < NSGS; j++) p->nbs[j] = neds;
 
         for (k = 0; k < NV; k++)
         {
@@ -194,8 +199,8 @@ void init_replicas()
                 else
                 {
                     p->sp[j][k] = -1;
-                    p->energy += flip_energy(1, sub[j][k], p->nb);
-                    update_nb(-1, sub[j][k], p->nb);
+                    p->energy += flip_energy(1, subr[j][k], subs[j][k], p->nbr, p->nbs);
+                    update_nb(-1, subr[j][k], subs[j][k], p->nbr, p->nbs);
                 }
             }
         }
@@ -215,13 +220,14 @@ void sweep()
             for (j = 0; j < k; j++)
             {
                 /* compute energy difference of flip */
-                delta = flip_energy(p->sp[j][k], sub[j][k], p->nb);
+                delta = flip_energy(p->sp[j][k], subr[j][k], subs[j][k], p->nbr, p->nbs); 
 
                 /* flip with Metropolis probability */
                 if (delta <= 0 || URAND() < exp(mbeta[it]*delta))
                 {
                     p->energy += delta;
-                    update_nb(p->sp[j][k] *= -1, sub[j][k], p->nb);
+                    p->sp[j][k] *= -1;
+                    update_nb(p->sp[j][k], subr[j][k], subs[j][k], p->nbr, p->nbs);
                 }
             }
         }
@@ -376,17 +382,21 @@ int main(int argc, char *argv[])
     }
     assert(nt > 1);
 
-    ned = S*(S-1)/2;
-    nedm1 = ned - 1;
+    nedr = R*(R-1)/2;
+    neds = S*(S-1)/2;
+    nedrm1 = nedr - 1;
+    nedsm1 = neds - 1;
 
-    init_subgraph_table();
+    init_subgraph_table(subr, R, NSGFER);
+    init_subgraph_table(subs, S, NSGFES);
     init_replicas();
 
     if (argc == 4) load_state(argv[3]);
 
     run();
     
-    free_subgraph_table();
+    free_subgraph_table(subr);
+    free_subgraph_table(subs);
 
     return EXIT_SUCCESS;
 }

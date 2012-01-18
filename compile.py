@@ -3,10 +3,10 @@ import subprocess
 import sys
 
 if len(sys.argv) == 3:
-    nv, s = int(sys.argv[1]), int(sys.argv[2])
+    s, nv = int(sys.argv[1]), int(sys.argv[2])
 else:
-    nv  = int(input('N_v = '))
     s   = int(input('s   = '))
+    nv  = int(input('N_v = '))
 
 
 nsg = comb(nv, s, exact=True)
