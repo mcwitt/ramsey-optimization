@@ -1,11 +1,13 @@
 /*
- * Undefined constants
- *      NV  : number of vertices
- *      S   : clique size
+ * Undefined constants (computed by compile.py)
+ *      NV      : number of vertices
+ *      S       : clique size
+ *      NSG     : number of subgraphs with S vertices (=binomial(NV, S))
+ *      NSGFE   : number of subgraphs with S vertices including a given edge
  */
 
 #define NT_MAX 24
-#define WRITE_INTERVAL 10
+#define WRITE_INTERVAL 1000000
 #define OUTFILE "zero.data"
 
 #include <assert.h>
@@ -24,7 +26,7 @@ typedef struct
     int sp[NV][NV];  
     /* for j < k, sp[j][k] = 1 if edge (j, k) is blue, -1 if edge is red */
 
-    int *nb;        /* number of blue edges in each S-subgraph */
+    int nb[NSG];    /* number of blue edges in each S-subgraph */
     int energy;     /* number of blue S-cliques and red S-cliques */
 } rep_t;
 
@@ -32,12 +34,10 @@ typedef struct
 
 int ned;    /* number of edges in an S-subgraph (=S(S-1)/2) */
 int nedm1;  /* ned minus one */
-int nsg;    /* number of subgraphs with S vertices (=binomial(N, S)) */
-int nsgfe;  /* number of subgraphs including a given edge */
 
-int *sub[NV][NV];   
+int *sub[NV][NV];
 /*
- * for j < k, sub[j][k] is an array of length nsgfe containing the labels of
+ * for j < k, sub[j][k] is an array of length NSGFE containing the labels of
  * all subgraphs with S vertices that include the edge (j, k)
  */
 
@@ -57,25 +57,6 @@ uint32_t rseed; /* seed used to initialize RNG */
 #include "debug.c"
 #endif
 
-/* binomial coefficient */
-ULONG binomial(ULONG n, ULONG k)
-{
-    ULONG r = 1, d = n - k; 
-
-    /*if (k > n) return 0;*/
-
-    /* choose the smaller of k and n-k */
-    if (d > k) { k = d; d = n - k; }
-    while (n > k)
-    {
-        if (r >= ULONG_MAX / n) return 0;    /* overflown */
-        r *= n--;
-        /* divide as soon as possible to avoid overflow */
-        while (d > 1 && !(r % d)) r /= d--;
-    }
-    return r;
-}
-
 void init_globals()
 {
     int len[NV][NV];    /* positions in subgraph arrays */
@@ -86,15 +67,15 @@ void init_globals()
 
     ned = S*(S-1)/2;
     nedm1 = ned - 1;
-    nsg = binomial(NV, S);
-    nsgfe = S*(S-1.)/(NV*(NV-1.))*nsg; /* (=binomial(NV-2, S-2)) */
+    /*nsg = binomial(NV, S);
+    nsgfe = S*(S-1.)/(NV*(NV-1.))*nsg; *//* (=binomial(NV-2, S-2)) */
 
     /* initialize subgraph arrays */
     for (k = 0; k < NV; k++)
     {
         for (j = 0; j < k; j++)
         {
-            sub[j][k] = (int*) malloc(nsgfe * sizeof(int));
+            sub[j][k] = (int*) malloc(NSGFE * sizeof(int));
             len[j][k] = 0;
         }
     }
@@ -165,7 +146,7 @@ int flip_energy(int sp, int *sub, int *nb)
 
     if (sp == 1)
     {
-        for (i = 0; i < nsgfe; i++)
+        for (i = 0; i < NSGFE; i++)
         {
             nbi = nb[sub[i]];
             if (nbi == ned) delta--;
@@ -174,7 +155,7 @@ int flip_energy(int sp, int *sub, int *nb)
     }
     else
     {
-        for (i = 0; i < nsgfe; i++)
+        for (i = 0; i < NSGFE; i++)
         {
             nbi = nb[sub[i]];
             if (nbi == 0) delta--;
@@ -189,7 +170,7 @@ void update_nb(int sp, int *sub, int *nb)
 {
     int i;
 
-    for (i = 0; i < nsgfe; i++) nb[sub[i]] += sp;
+    for (i = 0; i < NSGFE; i++) nb[sub[i]] += sp;
 }
 
 /* initialize each replica with a random configuration */
@@ -202,11 +183,10 @@ void init_reps()
     {
         ri[it] = it;
         p = &reps[it];
-        p->energy = nsg;
-        p->nb = (int*) malloc(nsg * sizeof(int));
+        p->energy = NSG;
         nswaps[it] = 0;
 
-        for (j = 0; j < nsg; j++) p->nb[j] = ned;
+        for (j = 0; j < NSG; j++) p->nb[j] = ned;
 
         for (k = 0; k < NV; k++)
         {
@@ -224,13 +204,6 @@ void init_reps()
     }
 }
 
-void free_reps()
-{
-    int it;
-
-    for (it = 0; it < nt; it++)
-        free(reps[it].nb);
-}
 void sweep()
 {
     rep_t *p;
@@ -320,24 +293,30 @@ void load_state(char filename[])
 
 void run()
 {
+    rep_t *p;
     char filename[256];
-    int it, nsweeps, done;
+    int it, nsweeps, lowest, done;
 
+    lowest = INT_MAX;
     nsweeps = 0;
     done = 0;
 
-    while (! done && nsweeps < 50)
+    while (! done && nsweeps < 100000)
     {
         sweep();
         nsweeps++;
 
         temper();
 
-        for (it=0; it<nt; it++)
-            printf("%3d ", reps[ri[it]].energy);
-        for (it=1; it<nt; it++)
-            printf("%3.2f ", (float) nswaps[it]/nsweeps);
-        printf("\n");
+        if (nsweeps % 100 == 0)
+        {
+            printf("%3d | ", lowest);
+            for (it = 0; it < nt; it++)
+                printf("%3d ", reps[ri[it]].energy);
+            for (it = 1; it < nt; it++)
+                printf("%3.2f ", (float) nswaps[it]/nsweeps);
+            printf("\n");
+        }
 
         if (nsweeps % WRITE_INTERVAL == 0)
         {
@@ -348,14 +327,20 @@ void run()
 
         for (it = 0; it < nt; it++)
         {
-            if (reps[ri[it]].energy == 0)
+            p = &reps[ri[it]];
+            if (p->energy < lowest)
             {
-                printf("Found zero-energy ground state!\n");
-                printf("Graph saved to %s\n", OUTFILE);
-                printf("N_sweeps = %d\n", nsweeps);
-                save_graph(reps[ri[it]].sp, OUTFILE);
-                done = 1;
-                break;
+                lowest = p->energy;
+
+                if (p->energy == 0)
+                {
+                    printf("Found zero-energy ground state!\n");
+                    printf("Graph saved to %s\n", OUTFILE);
+                    printf("N_sweeps = %d\n", nsweeps);
+                    save_graph(reps[ri[it]].sp, OUTFILE);
+                    done = 1;
+                    break;
+                }
             }
         }
     }
@@ -393,7 +378,6 @@ int main(int argc, char *argv[])
 
     run();
     
-    free_reps();
     free_globals();
 
     return EXIT_SUCCESS;
