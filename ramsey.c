@@ -10,9 +10,8 @@
  */
 
 #define MAX_NT          32
-#define MAX_SWEEPS      1000000
-#define WRITE_INTERVAL  200
-#define OUTFILE         "zero.data"
+#define MAX_SWEEPS      100000
+#define WRITE_INTERVAL  100000
 
 #include <assert.h>
 #include <limits.h>
@@ -323,9 +322,9 @@ void run()
         if (nsweeps % WRITE_INTERVAL == 0)
         {
             sprintf(filename, "%d-%d-%d_%d.bin",
-                    NV, S, S, nsweeps/WRITE_INTERVAL);
+                    S, S, NV, nsweeps/WRITE_INTERVAL);
             save_state(filename);
-            printf("state saved to %s\n", filename);
+            printf("State saved to %s\n", filename);
         }
 
         for (it = 0; it < nt; it++)
@@ -338,16 +337,24 @@ void run()
 
                 if (p->energy == 0)
                 {
+
+                    sprintf(filename, "%d-%d-%d_0.graph", S, S, NV);
+                    save_graph(reps[ri[it]].sp, filename);
+
                     printf("Found zero-energy ground state!\n");
-                    printf("Graph saved to %s\n", OUTFILE);
+                    printf("Graph saved to %s\n", filename);
                     printf("N_sweeps = %d\n", nsweeps);
-                    save_graph(reps[ri[it]].sp, OUTFILE);
+
                     done = 1;
                     break;
                 }
             }
         }
     }
+
+    sprintf(filename, "%d-%d-%d_%d.graph", S, S, NV, reps[0].energy);
+    save_graph(reps[ri[it]].sp, filename);
+    printf("Graph saved to %s\n", filename);
 }
 
 int main(int argc, char *argv[])

@@ -72,6 +72,8 @@ def read(filename):
     return a, nv, r, s
 
 if __name__=='__main__':
-    a, nv, r, s = read('zero.data')
-    print energy(a, r, s)
-    #draw(a, 'zero.eps')
+    import sys
+    if len(sys.argv) == 2:
+        a, nv, r, s = read(sys.argv[1])
+        print energy(a, r, s)
+        draw(a, 'graph.eps')
