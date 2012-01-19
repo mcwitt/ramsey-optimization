@@ -7,14 +7,14 @@
  *      S       : blue clique size
  *      NSGR    : number of subgraphs with R vertices (=binomial(NV, S))
  *      NSGS    : number of subgraphs with S vertices (=binomial(NV, S))
- *      NSGFER  : number of subgraphs with S vertices including a given edge
+ *      NSGFER  : number of subgraphs with R vertices including a given edge
  *      NSGFES  : number of subgraphs with S vertices including a given edge
  *                  (=binomial(NV-2, S-2))
  */
 
 #define MAX_NT          32
-#define MAX_SWEEPS      1000000
-#define WRITE_INTERVAL  200
+#define MAX_SWEEPS      100000
+#define WRITE_INTERVAL  100000
 
 #include <assert.h>
 #include <limits.h>
@@ -264,7 +264,7 @@ void save_graph(int sp[NV][NV], char filename[])
 
     fp = fopen(filename, "w");
     fprintf(fp, "%d\n", NV);
-    fprintf(fp, "%d\n", S);
+    fprintf(fp, "%d\n", R);
     fprintf(fp, "%d\n", S);
     
     for (k = 0; k < NV; k++)

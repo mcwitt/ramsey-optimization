@@ -1,4 +1,5 @@
 from numpy import *
+from matplotlib.pyplot import *
 from itertools import combinations
 
 def clique_count(a, m):
@@ -27,10 +28,10 @@ def clique_count(a, m):
     count = 0
 
     # iterate over all ways of choosing m vertices
-    for alpha in combinations(verts, m):
+    for c in combinations(verts, m):
         isclique = True
-        for j, k in combinations(alpha, 2):
-            if not a[j,k]:
+        for j, k in combinations(c, 2):
+            if not a[j, k]:
                 isclique = False
                 break
         if isclique:
@@ -41,23 +42,59 @@ def clique_count(a, m):
 def energy(a, n, m):
     return clique_count(a, m) + clique_count(a==False, n)
 
-def draw(a, out='graph'):
-    'Make an EPS drawing of the graph'
-    import pyx
-    c = pyx.canvas.canvas()
+def draw(a, r, s):
     N = len(a)
     verts = range(N)
-    xy = lambda j: (5*sin(2*pi*j/N), 5*cos(2*pi*j/N))
-    for j, k in combinations(verts, 2):
-        color = pyx.color.rgb.red if a[j, k] else pyx.color.rgb.blue
+    xy = lambda j: (sin(2*pi*j/N), cos(2*pi*j/N))
+
+    def add_graph(fig, row=1, col=1, index=1):
+        ax = fig.add_subplot(row, col, index)
+        ax.set_xlim(-1.2, 1.2)
+        ax.set_ylim(-1.2, 1.2)
+        ax.set_aspect(1)
+        ax.get_xaxis().set_visible(False)
+        ax.get_yaxis().set_visible(False)
+        return ax
+
+    def draw_verts(ax):
+        for j in verts:
+            c = Circle(xy(j), radius=0.05, color='k', zorder=10)
+            ax.add_patch(c)
+
+    def draw_edge(ax, j, k):
+        color = 'b' if a[j, k] == 1 else 'r'
         xj, yj = xy(j)
         xk, yk = xy(k)
-        c.stroke(pyx.path.line(xj, yj, xk, yk), [color])
-    for k in verts:
-        x, y = xy(k)
-        c.fill(pyx.path.circle(x, y, 0.2), [pyx.color.rgb.black])
+        l = Line2D([xj, xk], [yj, yk], color=color)
+        ax.add_line(l)
 
-    c.writeEPSfile(out)
+    # draw all edges
+    fig = figure()
+    ax = add_graph(fig)
+    draw_verts(ax)
+    for j, k in combinations(verts, 2):
+        draw_edge(ax, j, k)
+
+    # draw cliques
+    fig = figure()
+    ncols = 3.
+    nrows = int(ceil(energy(a, r, s) / ncols))
+    i = 1
+    for g, size in [(a, s), (a == False, r)]:
+        for c in combinations(verts, size):
+            isclique = True
+            for j, k in combinations(c, 2):
+                if not g[j, k]:
+                    isclique = False
+                    break
+            if isclique:
+                ax = add_graph(fig, nrows, ncols, i)
+                draw_verts(ax)
+                for j, k in combinations(c, 2):
+                    draw_edge(ax, j, k)
+                i += 1
+
+    show()
 
 def read(filename):
     with open(filename, 'r') as f:
@@ -76,4 +113,4 @@ if __name__=='__main__':
     if len(sys.argv) == 2:
         a, nv, r, s = read(sys.argv[1])
         print energy(a, r, s)
-        draw(a, 'graph.eps')
+        draw(a, r, s)
