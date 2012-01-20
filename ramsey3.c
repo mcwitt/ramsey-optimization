@@ -1,5 +1,5 @@
 /*
- * To compile, run python compile.py
+ * To compile, run python compile3.py
  *
  * Undefined constants (computed by compile.py)
  *      NV      : number of vertices
@@ -11,8 +11,8 @@
  */
 
 #define MAX_NT          32
-#define MAX_SWEEPS      10000
-#define WRITE_INTERVAL  10000
+#define MAX_SWEEPS      1000
+#define WRITE_INTERVAL  1000
 
 #include <assert.h>
 #include <limits.h>
@@ -32,7 +32,7 @@ typedef unsigned long ULONG;
 typedef struct
 {
     int sp[NED];
-
+    int h2[NED];    /* local field at each edge (doubled) */
     int nb[NSG];    /* number of blue edges in each S-subgraph */
     int energy;     /* number of blue S-cliques and red S-cliques */
 } rep_t;
@@ -42,11 +42,8 @@ typedef struct
 int ned;    /* number of edges in an S-subgraph (=S(S-1)/2) */
 int nedm1;  /* ned minus one */
 
-int *sub[NED];
-/*
- * for j < k, sub[j][k] is an array of length NSGFE containing the labels of
- * all subgraphs with S vertices that include the edge (j, k)
- */
+int *sub[NED];  /* sub[ei] lists the NSGFE complete S-subgraphs that include edge ei */
+int *edg[NSG];  /* edg[si] lists the NED edges of subgraph si */
 
 rep_t reps[MAX_NT]; /* storage for parallel tempering (PT) replicas */
 int ri[MAX_NT];     /* replica indices in order of increasing temperature */
@@ -65,16 +62,22 @@ uint32_t rseed; /* seed used to initialize RNG */
 
 void init_subgraph_table()
 {
-    int len[NED];       /* positions in subgraph arrays */
+    int ps[NED];
+    int pe[NSG];
     int c[S+2];         /* array of vertices of the current subgraph */
     int ei, si;         /* edge index, subgraph index */
     int j, k;
 
-    /* initialize subgraph arrays */
     for (j = 0; j < NED; j++)
     {
         sub[j] = (int*) malloc(NSGFE * sizeof(int));
-        len[j] = 0;
+        ps[j] = 0;
+    }
+
+    for (j = 0; j < NSG; j++)
+    {
+        edg[j] = (int*) malloc(NED * sizeof(int));
+        pe[j] = 0;
     }
 
     /* 
@@ -107,8 +110,12 @@ void init_subgraph_table()
             {
                 ei = EDGE(c[j], c[k]);
 
-                /* add subgraph to list for edge (i, j) */
-                sub[ei][len[ei]++] = si;
+                /*
+                 * add subgraph si to list for edge ei,
+                 * and edge ei to list for subgraph si
+                 */
+                sub[ei][ps[ei]++] = si;
+                edg[si][pe[si]++] = ei;
             }
         }
 
@@ -168,6 +175,20 @@ void update_nb(int sp, int *sub, int *nb)
     for (i = 0; i < NSGFE; i++) nb[sub[i]] += sp;
 }
 
+void update(int sp, int *sub, int *edg, int *nb)
+{
+    int i, nbf;
+
+    if (sp == 1)
+    {
+        for (i = 0; i < NSGFE; i++)
+        {
+            nbi = nb[sub[i]];
+        }
+    }
+
+}
+
 /* initialize each replica in a random configuration */
 void init_replicas()
 {
@@ -185,14 +206,13 @@ void init_replicas()
 
         for (j = 0; j < NED; j++)
         {
-            if (URAND() > 0.5) p->sp[j] = 1;
-            else
-            {
-                p->sp[j] = -1;
-                p->energy += flip_energy(1, sub[j], p->nb);
-                update_nb(-1, sub[j], p->nb);
-            }
+            p->sp[j] = 1;
+            p->h2[j] = -2*NSGFE;
         }
+
+        /* randomize spins */
+        for (j = 0; j < NED; j++)
+            if (URAND() < 0.5) flip(j);
     }
 }
 
@@ -208,14 +228,11 @@ void sweep()
         for (j = 0; j < NED; j++)
         {
             /* compute energy difference of flip */
-            delta = flip_energy(p->sp[j], sub[j], p->nb);
+            delta = h2[j]*sp[j];
 
             /* flip with Metropolis probability */
             if (delta <= 0 || URAND() < exp(mbeta[it]*delta))
-            {
-                p->energy += delta;
-                update_nb(p->sp[j] *= -1, sub[j], p->nb);
-            }
+                flip(j);
         }
 #ifdef DEBUG
         assert(debug_energy(p->sp) == p->energy);
