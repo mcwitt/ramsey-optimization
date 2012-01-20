@@ -12,7 +12,10 @@ ramsey_dbg: ramsey.c dSFMT.o
 	gcc -g -DDEBUG -DNV=$(NV) -DS=$S -DNSG=$(NSG) -DNSGFE=$(NSGFE) -o $@_$S-$S-$(NV).out $^ $(CFLAGS)
 
 ramsey: ramsey.c dSFMT.o
-	gcc -DNV=$(NV) -DS=$S -DNSG=$(NSG) -DNSGFE=$(NSGFE) -o $@_$S-$S-$(NV).out $^ $(CFLAGS)
+	gcc -g -DNV=$(NV) -DS=$S -DNSG=$(NSG) -DNSGFE=$(NSGFE) -o $@_$S-$S-$(NV).out $^ $(CFLAGS)
 
 ramsey2: ramsey2.c dSFMT.o
 	gcc -g -DNV=$(NV) -DR=$R -DS=$S -DNSGR=$(NSGR) -DNSGS=$(NSGS) -DNSGFER=$(NSGFER) -DNSGFES=$(NSGFES) -o $@_$R-$S-$(NV).out $^ $(CFLAGS)
+
+ramsey3: ramsey3.c dSFMT.o
+	gcc -g -DNV=$(NV) -DS=$S -DNED=$(NED) -DNSG=$(NSG) -DNSGFE=$(NSGFE) -o $@_$S-$S-$(NV).out $^ $(CFLAGS)

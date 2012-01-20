@@ -298,12 +298,19 @@ void print_status()
 {
     int it;
 
-    printf("%3d | ", min);
-    for (it = 0; it < nt; it++)
-        printf("%3d ", reps[ri[it]].energy);
-    for (it = 1; it < nt; it++)
-        printf("%3.2f ", (float) nswaps[it]/nsweeps);
     printf("\n");
+    printf("E_min    = %d\n", min);
+    printf("N_sweeps = %d\n", nsweeps);
+    for (it = 0; it < nt; it++)
+        printf("%5d ", reps[ri[it]].energy);
+    printf("\n");
+    for (it = 0; it < nt; it++)
+        printf("%5.2f ", T[it]);
+    printf("\n   ");
+    for (it = 1; it < nt; it++)
+        printf("%5.2f ", (float) nswaps[it]/nsweeps);
+    printf("\n");
+    fflush(stdout);
 }
 
 void run()
@@ -340,26 +347,19 @@ void run()
             {
                 min = p->energy;
                 print_status();
+                sprintf(filename, "%d-%d-%d_min.graph", R, S, NV);
+                save_graph(p->sp, filename);
 
                 if (p->energy == 0)
                 {
-                    sprintf(filename, "%d-%d-%d_0.graph", R, S, NV);
-                    save_graph(reps[ri[it]].sp, filename);
-
                     printf("Found zero-energy ground state!\n");
-                    printf("Graph saved to %s\n", filename);
                     printf("N_sweeps = %d\n", nsweeps);
-
                     done = 1;
                     break;
                 }
             }
         }
     }
-
-    sprintf(filename, "%d-%d-%d_%d.graph", R, S, NV, reps[0].energy);
-    save_graph(reps[ri[it]].sp, filename);
-    printf("Graph saved to %s\n", filename);
 }
 
 int main(int argc, char *argv[])
