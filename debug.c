@@ -1,7 +1,7 @@
-int debug_energy(int s[NV][NV])
+int debug_energy(int s[NED])
 {
     int c[S+2];
-    int j, k, cj, ck;
+    int j, k;
     int edgesum, energy;
 
     /* 
@@ -31,17 +31,10 @@ int debug_energy(int s[NV][NV])
 
         /* iterate over edges in this subgraph */
         for (k = 0; k < S; k++)
-        {
             for (j = 0; j < k; j++)
-            {
-                cj = c[j];
-                ck = c[k];
+                edgesum += s[c[k]*(c[k]-1)/2 + c[j]];
 
-                edgesum += s[cj][ck];
-            }
-        }
-
-        if (abs(edgesum) == ned) energy++;
+        if (abs(edgesum) == neds) energy++;
 
         /* FIND j */
         j = 0;

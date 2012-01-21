@@ -11,8 +11,8 @@
  */
 
 #define MAX_NT          32
-#define MAX_SWEEPS      1000
-#define WRITE_INTERVAL  1000
+#define MAX_SWEEPS      100
+#define WRITE_INTERVAL  100
 
 #include <assert.h>
 #include <limits.h>
@@ -22,9 +22,6 @@
 #include "dSFMT.h"
 
 #define URAND() dsfmt_genrand_close_open(&rstate)
-
-/* computes index of edge (j, k), j < k */
-#define EDGE(j, k) (k*(k-1)/2 + j)
 
 typedef unsigned long ULONG;
 
@@ -39,11 +36,14 @@ typedef struct
 
 /* Global variables **********************************************************/
 
-int ned;    /* number of edges in an S-subgraph (=S(S-1)/2) */
-int nedm1;  /* ned minus one */
+int neds    = S*(S-1)/2;        /* number of edges in an S-subgraph */
+int nedsm1  = S*(S-1)/2 - 1;
+int nedsm2  = S*(S-1)/2 - 2;
 
-int *sub[NED];  /* sub[ei] lists the NSGFE complete S-subgraphs that include edge ei */
-int *edg[NSG];  /* edg[si] lists the NED edges of subgraph si */
+/* sub[ei] lists the complete S-subgraphs that include edge ei */
+/* edg[si] lists the edges of subgraph si */
+int *sub[NED];
+int *edg[NSG];
 
 rep_t reps[MAX_NT]; /* storage for parallel tempering (PT) replicas */
 int ri[MAX_NT];     /* replica indices in order of increasing temperature */
@@ -64,7 +64,7 @@ void init_subgraph_table()
 {
     int ps[NED];
     int pe[NSG];
-    int c[S+2];         /* array of vertices of the current subgraph */
+    int c[S+2];     /* array of vertices of the current subgraph */
     int ei, si;         /* edge index, subgraph index */
     int j, k;
 
@@ -108,7 +108,7 @@ void init_subgraph_table()
         {
             for (j = 0; j < k; j++)
             {
-                ei = EDGE(c[j], c[k]);
+                ei = c[k]*(c[k]-1)/2 + c[j];
 
                 /*
                  * add subgraph si to list for edge ei,
@@ -138,56 +138,79 @@ void free_subgraph_table()
 
     for (i = 0; i < NED; i++)
         free(sub[i]);
+    for (i = 0; i < NSG; i++)
+        free(edg[i]);
 }
 
-int flip_energy(int sp, int *sub, int *nb)
+void update(int ei, int *sp, int *nb, int *h2)
 {
-    int i, nbi, delta;
+    int si, j, ej, nbf;
 
-    delta = 0;
-
-    if (sp == 1)
+    if (sp[ei] == 1)
     {
-        for (i = 0; i < NSGFE; i++)
+        for (si = 0; si < NSGFE; si++)
         {
-            nbi = nb[sub[i]];
-            if (nbi == ned) delta--;
-            else if (nbi == 1) delta++;
+            nbf = nb[sub[ei][si]] += 1;
+            if (nbf == neds || nbf == 1)
+            {
+                /* completed a blue clique or destroyed a red clique */
+                h2[ei] += 1;
+                for (j = 0; j < neds; j++)
+                    h2[edg[sub[ei][si]][j]] -= 1;
+            }
+            else if (nbf == nedsm1)
+            {
+                for (j = 0; j < neds; j++)
+                {
+                    ej = edg[sub[ei][si]][j];
+                    if (sp[ej] == -1) { h2[ej] -= 1; break; }
+                }
+            }
+            else if (nbf == 2)
+            {
+                for (j = 0; j < neds; j++)
+                {
+                    ej = edg[sub[ei][si]][j];
+                    if (sp[ej] == 1 && ej != ei) { h2[ej] -= 1; break; }
+                }
+            }
         }
     }
     else
     {
-        for (i = 0; i < NSGFE; i++)
+        for (si = 0; si < NSGFE; si++)
         {
-            nbi = nb[sub[i]];
-            if (nbi == 0) delta--;
-            else if (nbi == nedm1) delta++;
+            nbf = nb[sub[ei][si]] -= 1;
+            if (nbf == 0 || nbf == nedsm1)
+            {
+                /* completed a red clique or destroyed a blue clique */
+                h2[ei] -= 1;
+                for (j = 0; j < neds; j++)
+                    h2[edg[sub[ei][si]][j]] += 1;
+            }
+            else if (nbf == 1)
+            {
+                for (j = 0; j < neds; j++)
+                {
+                    ej = edg[sub[ei][si]][j];
+                    if (sp[ej] == 1) { h2[ej] += 1; break; }
+                }
+            }
+            else if (nbf == nedsm2)
+            {
+                for (j = 0; j < neds; j++)
+                {
+                    ej = edg[sub[ei][si]][j];
+                    if (sp[ej] == -1 && ej != ei) { h2[ej] += 1; break; }
+                }
+            }
         }
     }
-
-    return delta;
 }
 
-void update_nb(int sp, int *sub, int *nb)
-{
-    int i;
-
-    for (i = 0; i < NSGFE; i++) nb[sub[i]] += sp;
-}
-
-void update(int sp, int *sub, int *edg, int *nb)
-{
-    int i, nbf;
-
-    if (sp == 1)
-    {
-        for (i = 0; i < NSGFE; i++)
-        {
-            nbi = nb[sub[i]];
-        }
-    }
-
-}
+#ifdef DEBUG
+#include "debug.c"
+#endif
 
 /* initialize each replica in a random configuration */
 void init_replicas()
@@ -202,17 +225,24 @@ void init_replicas()
         p->energy = NSG;
         nswaps[it] = 0;
 
-        for (j = 0; j < NSG; j++) p->nb[j] = ned;
+        for (j = 0; j < NSG; j++) p->nb[j] = neds;
 
         for (j = 0; j < NED; j++)
         {
             p->sp[j] = 1;
-            p->h2[j] = -2*NSGFE;
+            p->h2[j] = -NSGFE;
         }
 
         /* randomize spins */
         for (j = 0; j < NED; j++)
-            if (URAND() < 0.5) flip(j);
+        {
+            if (URAND() < 0.5)
+            {
+                p->sp[j] = -1;
+                p->energy += p->h2[j];
+                update(j, p->sp, p->nb, p->h2);
+            }
+        }
     }
 }
 
@@ -228,11 +258,15 @@ void sweep()
         for (j = 0; j < NED; j++)
         {
             /* compute energy difference of flip */
-            delta = h2[j]*sp[j];
+            delta = p->h2[j]*p->sp[j];
 
             /* flip with Metropolis probability */
             if (delta <= 0 || URAND() < exp(mbeta[it]*delta))
-                flip(j);
+            {
+                p->sp[j] *= -1;
+                p->energy += delta;
+                update(j, p->sp, p->nb, p->h2);
+            }
         }
 #ifdef DEBUG
         assert(debug_energy(p->sp) == p->energy);
@@ -340,7 +374,7 @@ void run()
             sprintf(filename, "%d-%d-%d_%d.bin",
                     S, S, NV, nsweeps/WRITE_INTERVAL);
             save_state(filename);
-            printf("State saved to %s\n", filename);
+            printf("(N_sweeps = %d) state saved to %s\n", nsweeps, filename);
         }
 
         for (it = 0; it < nt; it++)
@@ -353,13 +387,7 @@ void run()
                 sprintf(filename, "%d-%d-%d_min.graph", S, S, NV);
                 save_graph(p->sp, filename);
 
-                if (p->energy == 0)
-                {
-                    printf("Found zero-energy ground state!\n");
-                    printf("N_sweeps = %d\n", nsweeps);
-                    done = 1;
-                    break;
-                }
+                if (p->energy == 0) { done = 1; break; }
             }
         }
     }
@@ -390,9 +418,6 @@ int main(int argc, char *argv[])
         nt++;
     }
     assert(nt > 1);
-
-    ned = S*(S-1)/2;
-    nedm1 = ned - 1;
 
     init_subgraph_table();
     init_replicas();

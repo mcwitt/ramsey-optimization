@@ -11,8 +11,8 @@
  */
 
 #define MAX_NT          32
-#define MAX_SWEEPS      1000
-#define WRITE_INTERVAL  1000
+#define MAX_SWEEPS      100
+#define WRITE_INTERVAL  100
 
 #include <assert.h>
 #include <limits.h>
@@ -23,25 +23,22 @@
 
 #define URAND() dsfmt_genrand_close_open(&rstate)
 
-/* computes index of edge (j, k), j < k */
-#define EDGE(j, k) (k*(k-1)/2 + j)
-
 typedef unsigned long ULONG;
 
 /* Replica-specific variables ************************************************/
 typedef struct
 {
     int sp[NED];
-
     int nb[NSG];    /* number of blue edges in each S-subgraph */
     int energy;     /* number of blue S-cliques and red S-cliques */
 } rep_t;
 
 /* Global variables **********************************************************/
 
-int ned;    /* number of edges in an S-subgraph (=S(S-1)/2) */
-int nedm1;  /* ned minus one */
+int neds    = S*(S-1)/2;        /* number of edges in an S-subgraph */
+int nedsm1  = S*(S-1)/2 - 1;
 
+/* sub[ei] lists the NSGFE complete S-subgraphs that include edge ei */
 int *sub[NED];
 /*
  * for j < k, sub[j][k] is an array of length NSGFE containing the labels of
@@ -65,16 +62,16 @@ uint32_t rseed; /* seed used to initialize RNG */
 
 void init_subgraph_table()
 {
-    int len[NED];       /* positions in subgraph arrays */
-    int c[S+2];         /* array of vertices of the current subgraph */
-    int ei, si;         /* edge index, subgraph index */
+    int p[NED]; /* positions in subgraph arrays */
+    int c[S+2]; /* array of vertices of the current subgraph */
+    int ei, si; /* edge index, subgraph index */
     int j, k;
 
     /* initialize subgraph arrays */
     for (j = 0; j < NED; j++)
     {
         sub[j] = (int*) malloc(NSGFE * sizeof(int));
-        len[j] = 0;
+        p[j] = 0;
     }
 
     /* 
@@ -105,10 +102,10 @@ void init_subgraph_table()
         {
             for (j = 0; j < k; j++)
             {
-                ei = EDGE(c[j], c[k]);
+                ei = c[k]*(c[k]-1)/2 + c[j];
 
                 /* add subgraph to list for edge (i, j) */
-                sub[ei][len[ei]++] = si;
+                sub[ei][p[ei]++] = si;
             }
         }
 
@@ -144,7 +141,7 @@ int flip_energy(int sp, int *sub, int *nb)
         for (i = 0; i < NSGFE; i++)
         {
             nbi = nb[sub[i]];
-            if (nbi == ned) delta--;
+            if (nbi == neds) delta--;
             else if (nbi == 1) delta++;
         }
     }
@@ -154,7 +151,7 @@ int flip_energy(int sp, int *sub, int *nb)
         {
             nbi = nb[sub[i]];
             if (nbi == 0) delta--;
-            else if (nbi == nedm1) delta++;
+            else if (nbi == nedsm1) delta++;
         }
     }
 
@@ -181,7 +178,7 @@ void init_replicas()
         p->energy = NSG;
         nswaps[it] = 0;
 
-        for (j = 0; j < NSG; j++) p->nb[j] = ned;
+        for (j = 0; j < NSG; j++) p->nb[j] = neds;
 
         for (j = 0; j < NED; j++)
         {
@@ -323,7 +320,7 @@ void run()
             sprintf(filename, "%d-%d-%d_%d.bin",
                     S, S, NV, nsweeps/WRITE_INTERVAL);
             save_state(filename);
-            printf("State saved to %s\n", filename);
+            printf("(N_sweeps = %d) state saved to %s\n", nsweeps, filename);
         }
 
         for (it = 0; it < nt; it++)
@@ -336,13 +333,7 @@ void run()
                 sprintf(filename, "%d-%d-%d_min.graph", S, S, NV);
                 save_graph(p->sp, filename);
 
-                if (p->energy == 0)
-                {
-                    printf("Found zero-energy ground state!\n");
-                    printf("N_sweeps = %d\n", nsweeps);
-                    done = 1;
-                    break;
-                }
+                if (p->energy == 0) { done = 1; break; }
             }
         }
     }
@@ -373,9 +364,6 @@ int main(int argc, char *argv[])
         nt++;
     }
     assert(nt > 1);
-
-    ned = S*(S-1)/2;
-    nedm1 = ned - 1;
 
     init_subgraph_table();
     init_replicas();
