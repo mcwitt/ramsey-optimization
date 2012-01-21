@@ -11,8 +11,8 @@
  */
 
 #define MAX_NT          32
-#define MAX_SWEEPS      100
-#define WRITE_INTERVAL  100
+#define MAX_SWEEPS      1000
+#define WRITE_INTERVAL  1000
 
 #include <assert.h>
 #include <limits.h>
@@ -40,10 +40,6 @@ int nedsm1  = S*(S-1)/2 - 1;
 
 /* sub[ei] lists the NSGFE complete S-subgraphs that include edge ei */
 int *sub[NED];
-/*
- * for j < k, sub[j][k] is an array of length NSGFE containing the labels of
- * all subgraphs with S vertices that include the edge (j, k)
- */
 
 rep_t reps[MAX_NT]; /* storage for parallel tempering (PT) replicas */
 int ri[MAX_NT];     /* replica indices in order of increasing temperature */
@@ -312,8 +308,6 @@ void run()
         nsweeps++;
 
         temper();
-
-        /*if (nsweeps % 100 == 0) print_status();*/
 
         if (nsweeps % WRITE_INTERVAL == 0)
         {

@@ -76,7 +76,7 @@ void init_subgraph_table()
 
     for (j = 0; j < NSG; j++)
     {
-        edg[j] = (int*) malloc(NED * sizeof(int));
+        edg[j] = (int*) malloc(neds * sizeof(int));
         pe[j] = 0;
     }
 
@@ -160,6 +160,8 @@ void update(int ei, int *sp, int *nb, int *h2)
             }
             else if (nbf == nedsm1)
             {
+                /* completed blue clique except for one red edge--
+                 * update field at red edge */
                 for (j = 0; j < neds; j++)
                 {
                     ej = edg[sub[ei][si]][j];
@@ -168,6 +170,8 @@ void update(int ei, int *sp, int *nb, int *h2)
             }
             else if (nbf == 2)
             {
+                /* destroyed an almost-complete red clique--
+                 * update field at the other blue edge */
                 for (j = 0; j < neds; j++)
                 {
                     ej = edg[sub[ei][si]][j];
@@ -366,8 +370,6 @@ void run()
         nsweeps++;
 
         temper();
-
-        /*if (nsweeps % 100 == 0) print_status();*/
 
         if (nsweeps % WRITE_INTERVAL == 0)
         {
