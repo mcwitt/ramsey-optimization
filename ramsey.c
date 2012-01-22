@@ -19,6 +19,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #include "dSFMT.h"
 
 #define URAND() dsfmt_genrand_close_open(&rstate)
@@ -53,6 +54,7 @@ double mbeta[MAX_NT];   /* negative inverse temperatures */
 dsfmt_t rstate; /* state of random number generator (RNG) */
 uint32_t rseed; /* seed used to initialize RNG */
 
+clock_t start;  /* start time */
 
 void init_subgraph_table()
 {
@@ -273,11 +275,15 @@ void load_state(char filename[])
 
 void print_status()
 {
-    int it;
+    int it, trun;
+
+    trun = (clock() - start)/CLOCKS_PER_SEC;
 
     printf("\n");
-    printf("E_min    = %d\n", min);
-    printf("N_sweeps = %d\n", nsweeps);
+    printf("min. energy     : %d\n", min);
+    printf("time running    : %d seconds\n", trun);
+    printf("# of sweeps     : %d\n", nsweeps);
+    printf("sweep rate      : %.2f / s\n", (float) nsweeps/trun);
     for (it = 0; it < nt; it++)
         printf("%5d ", reps[ri[it]].energy);
     printf("\n");
@@ -299,6 +305,7 @@ void run()
     min = INT_MAX;
     nsweeps = 0;
     done = 0;
+    start = clock();
 
     while (! done && nsweeps < MAX_SWEEPS)
     {
@@ -312,7 +319,7 @@ void run()
             sprintf(filename, "%d-%d-%d_%d.bin",
                     S, S, NV, nsweeps/WRITE_INTERVAL);
             save_state(filename);
-            printf("(N_sweeps = %d) state saved to %s\n", nsweeps, filename);
+            printf("state saved to %s\n", filename);
         }
 
         for (it = 0; it < nt; it++)
@@ -329,6 +336,8 @@ void run()
             }
         }
     }
+
+    print_status();
 }
 
 int main(int argc, char *argv[])
