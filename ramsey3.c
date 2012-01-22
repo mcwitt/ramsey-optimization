@@ -343,9 +343,11 @@ void print_status()
 
     printf("\n");
     printf("min. energy     : %d\n", min);
-    printf("time running    : %d seconds\n", trun);
     printf("# of sweeps     : %d\n", nsweeps);
+#ifndef NOTIME
+    printf("time running    : %d seconds\n", trun);
     printf("sweep rate      : %.2f / s\n", (float) nsweeps/trun);
+#endif
     for (it = 0; it < nt; it++)
         printf("%5d ", reps[ri[it]].energy);
     printf("\n");
