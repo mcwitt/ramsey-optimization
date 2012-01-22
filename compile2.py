@@ -1,4 +1,4 @@
-from scipy.misc import comb
+from choose import choose
 import subprocess
 import sys
 
@@ -10,10 +10,10 @@ else:
     nv  = int(input('N_v = '))
 
 
-nsgr = comb(nv, r, exact=True)
-nsgs = comb(nv, s, exact=True)
-nsgfer = comb(nv-2, r-2, exact=True)
-nsgfes = comb(nv-2, s-2, exact=True)
+nsgr = choose(nv, r)
+nsgs = choose(nv, s)
+nsgfer = choose(nv-2, r-2)
+nsgfes = choose(nv-2, s-2)
 
 cmd = "make ramsey2 NV={} R={} S={} NSGR={} NSGS={} NSGFER={} NSGFES={}".format(
             nv, r, s, nsgr, nsgs, nsgfer, nsgfes

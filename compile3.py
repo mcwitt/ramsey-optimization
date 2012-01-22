@@ -1,4 +1,4 @@
-from scipy.misc import comb
+from choose import choose
 import subprocess
 import sys
 
@@ -11,8 +11,8 @@ else:
 
 ned = nv*(nv-1)/2
 neds = s*(s-1)/2
-nsg = comb(nv, s, exact=True)
-nsgfe = comb(nv-2, s-2, exact=True)
+nsg = choose(nv, s)
+nsgfe = choose(nv-2, s-2)
 
 cmd = "make ramsey3 NV={} S={} NED={} NSG={} NSGFE={}".format(nv, s, ned, nsg, nsgfe).split()
 p = subprocess.Popen(cmd)

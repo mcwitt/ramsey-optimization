@@ -24,7 +24,6 @@
 #include "dSFMT.h"
 
 #define URAND() dsfmt_genrand_close_open(&rstate)
-typedef unsigned long ULONG;
 
 /* Replica-specific variables ************************************************/
 typedef struct
