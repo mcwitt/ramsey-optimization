@@ -11,7 +11,7 @@
  */
 
 #define MAX_NT          32
-#define MAX_SWEEPS      1000
+#define MAX_SWEEPS      100
 #define WRITE_INTERVAL  1000
 
 #include <assert.h>
@@ -54,7 +54,9 @@ double mbeta[MAX_NT];   /* negative inverse temperatures */
 dsfmt_t rstate; /* state of random number generator (RNG) */
 uint32_t rseed; /* seed used to initialize RNG */
 
+#ifndef NOTIME
 clock_t start;  /* start time */
+#endif
 
 void init_subgraph_table()
 {
@@ -100,7 +102,7 @@ void init_subgraph_table()
             {
                 ei = c[k]*(c[k]-1)/2 + c[j];
 
-                /* add subgraph to list for edge (i, j) */
+                /* add subgraph to list for edge (j, k) */
                 sub[ei][p[ei]++] = si;
             }
         }
@@ -160,6 +162,10 @@ void update_nb(int sp, int *sub, int *nb)
 
     for (i = 0; i < NSGFE; i++) nb[sub[i]] += sp;
 }
+
+#ifdef DEBUG
+#include "debug.c"
+#endif
 
 /* initialize each replica in a random configuration */
 void init_replicas()
@@ -275,14 +281,16 @@ void load_state(char filename[])
 
 void print_status()
 {
-    int it, trun;
-
-    trun = (clock() - start)/CLOCKS_PER_SEC;
+    int it;
+#ifndef NOTIME
+    int trun;
+#endif
 
     printf("\n");
     printf("min. energy     : %d\n", min);
     printf("# of sweeps     : %d\n", nsweeps);
 #ifndef NOTIME
+    trun = (clock() - start)/CLOCKS_PER_SEC;
     printf("time running    : %d seconds\n", trun);
     printf("sweep rate      : %.2f / s\n", (float) nsweeps/trun);
 #endif
@@ -307,7 +315,9 @@ void run()
     min = INT_MAX;
     nsweeps = 0;
     done = 0;
+#ifndef NOTIME
     start = clock();
+#endif
 
     while (! done && nsweeps < MAX_SWEEPS)
     {

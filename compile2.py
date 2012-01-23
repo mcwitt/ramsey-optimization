@@ -10,13 +10,14 @@ else:
     nv  = int(input('N_v = '))
 
 
+ned = nv*(nv-1)/2
 nsgr = choose(nv, r)
 nsgs = choose(nv, s)
 nsgfer = choose(nv-2, r-2)
 nsgfes = choose(nv-2, s-2)
 
-cmd = "make ramsey2 NV={} R={} S={} NSGR={} NSGS={} NSGFER={} NSGFES={}".format(
-            nv, r, s, nsgr, nsgs, nsgfer, nsgfes
+cmd = "make ramsey2 NV={} R={} S={} NED={} NSGR={} NSGS={} NSGFER={} NSGFES={}".format(
+            nv, r, s, ned, nsgr, nsgs, nsgfer, nsgfes
         ).split()
 
 p = subprocess.Popen(cmd)

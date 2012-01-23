@@ -10,7 +10,6 @@ else:
 
 
 ned = nv*(nv-1)/2
-neds = s*(s-1)/2
 nsg = choose(nv, s)
 nsgfe = choose(nv-2, s-2)
 
