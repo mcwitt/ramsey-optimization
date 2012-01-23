@@ -14,7 +14,7 @@
  */
 
 #define MAX_NT          32
-#define MAX_SWEEPS      1000
+#define MAX_SWEEPS      100
 #define WRITE_INTERVAL  1000
 
 #include <assert.h>
@@ -27,10 +27,19 @@
 
 #define URAND() dsfmt_genrand_close_open(&rstate)
 
+#if (S > R)
+#define MAX_RS  S
+#define MAX_NSG NSGS
+#else
+#define MAX_RS  R
+#define MAX_NSG NSGR
+#endif
+
 /* Replica-specific variables ************************************************/
 typedef struct
 {
     int sp[NED];
+    int h2[NED];
     int nbr[NSGR];  /* number of blue edges in each R-subgraph */
     int nbs[NSGS];  /* number of blue edges in each S-subgraph */
     int energy;     /* number of blue S-cliques and red R-cliques */
@@ -41,11 +50,16 @@ typedef struct
 int nedr = R*(R-1)/2;       /* number of edges in an R-subgraph */
 int neds = S*(S-1)/2;       /* number of edges in an S-subgraph */
 int nedsm1 = S*(S-1)/2 - 1; /* neds minus one */
+int nedsm2 = S*(S-1)/2 - 2;
 
-/* sub[ei] (subr[ei]) lists the NSGFES (NSGFER) complete S-subgraphs
+/* subs[ei] (subr[ei]) lists the NSGFES (NSGFER) complete S-subgraphs
  * (R-subgraphs) that include edge ei */
 int *subr[NED];
 int *subs[NED];
+ 
+/* edgs[si] (edgr[si]) lists the edges of S-subgraph (R-subgraph) si */
+int *edgr[NSGR];
+int *edgs[NSGS];
 
 rep_t reps[MAX_NT]; /* storage for parallel tempering (PT) replicas */
 int ri[MAX_NT];     /* replica indices in order of increasing temperature */
@@ -66,18 +80,25 @@ clock_t start;  /* start time */
 #endif
 
 
-void init_subgraph_table(int *sub[NED], int t, int nsgfe)
+void init_subgraph_table(int *sub[NED], int *edg[NED], int t,
+        int nsg, int nsgfe, int nedsg)
 {
-    int p[NED]; /* positions in subgraph arrays */
-    int c[t+2];         /* array of vertices of the current subgraph */
-    int ei, si; /* edge index, subgraph index */
+    int ps[NED];
+    int pe[MAX_NSG];
+    int c[MAX_RS];   /* array of vertices of the current subgraph */
+    int ei, si;     /* edge index, subgraph index */
     int j, k;
 
-    /* initialize subgraph arrays */
     for (j = 0; j < NED; j++)
     {
         sub[j] = (int*) malloc(nsgfe * sizeof(int));
-        p[j] = 0;
+        ps[j] = 0;
+    }
+
+    for (j = 0; j < nsg; j++)
+    {
+        edg[j] = (int*) malloc(nedsg * sizeof(int));
+        pe[j] = 0;
     }
 
     /* 
@@ -110,8 +131,13 @@ void init_subgraph_table(int *sub[NED], int t, int nsgfe)
             {
                 ei = c[k]*(c[k]-1)/2 + c[j];
 
-                /* add subgraph to list for edge (j, k) */
-                sub[ei][p[ei]++] = si;
+                /*
+                 * add subgraph si to list for edge ei,
+                 * and edge ei to list for subgraph si
+                 */
+
+                sub[ei][ps[ei]++] = si;
+                edg[si][pe[si]++] = ei;
             }
         }
 
@@ -128,24 +154,105 @@ void init_subgraph_table(int *sub[NED], int t, int nsgfe)
     }
 }
 
-void free_subgraph_table(int *sub[NED])
+void free_subgraph_table(int *sub[NED], int *edg[MAX_NSG], int nsg)
 {
     int i;
 
     for (i = 0; i < NED; i++)
         free(sub[i]);
+    for (i = 0; i < nsg; i++)
+        free(edg[i]);
 }
 
-void update(int ei, int ned, int nsgfe, int sp[NED], int nb[NSG], int h2[NED])
+void update(int ei, int sp[NED], int nbr[NSGR], int nbs[NSGS], int h2[NED])
 {
     int si, j, ej, nbf;
 
     if (sp[ei] == 1)
     {
-        for (si = 0; si < nsgfe; si++)
+        for (si = 0; si < NSGFES; si++)
         {
-            nbf = nb[sub[ei][si]] += 1;
+            nbf = nbs[subs[ei][si]] += 1;
+
+            if (nbf == neds)    /* created blue clique */
+            {
+                h2[ei] += 1;
+                for (j = 0; j < neds; j++) h2[edgs[subs[ei][si]][j]] -= 1;
+            }
+            else if (nbf == nedsm1) /* created incomplete blue clique */
+            {
+                for (j = 0; j < neds; j++)
+                {
+                    ej = edgs[subs[ei][si]][j];
+                    if (sp[ej] == -1) { h2[ej] -= 1; break; }
+                }
+            }
+        }
+
+        for (si = 0; si < NSGFER; si++)
+        {
+            nbf = nbr[subr[ei][si]] += 1;
+
+            if (nbf == 1)   /* destroyed red clique */
+            {
+                h2[ei] += 1;
+                for (j = 0; j < nedr; j++) h2[edgr[subr[ei][si]][j]] -= 1;
+            }
+            else if (nbf == 2)   /* destroyed incomplete red clique */
+            {
+                for (j = 0; j < nedr; j++)
+                {
+                    ej = edgr[subr[ei][si]][j];
+                    if (sp[ej] == 1 && ej != ei) { h2[ej] -= 1; break; }
+                }
+            }
+        }
+    }
+    else
+    {
+        for (si = 0; si < NSGFER; si++)
+        {
+            nbf = nbr[subr[ei][si]] -= 1;
+
+            if (nbf == 0)   /* created a red clique */
+            {
+                h2[ei] -= 1;
+                for (j = 0; j < nedr; j++) h2[edgr[subr[ei][si]][j]] += 1;
+            }
+            else if (nbf == 1)  /* created an incomplete red clique */
+            {
+                for (j = 0; j < nedr; j++)
+                {
+                    ej = edgr[subr[ei][si]][j];
+                    if (sp[ej] == 1) { h2[ej] += 1; break; }
+                }
+            }
+        }
+
+        for (si = 0; si < NSGFES; si++)
+        {
+            nbf = nbs[subs[ei][si]] -= 1;
+
+            if (nbf == nedsm1)  /* destroyed a blue clique */
+            {
+                h2[ei] -= 1;
+                for (j = 0; j < neds; j++) h2[edgs[subs[ei][si]][j]] += 1;
+            }
+            else if (nbf == nedsm2) /* destroyed an incomplete blue clique */
+            {
+                for (j = 0; j < neds; j++)
+                {
+                    ej = edgs[subs[ei][si]][j];
+                    if (sp[ej] == -1 && ej != ei) { h2[ej] += 1; break; }
+                }
+            }
+        }
+    }
 }
+
+#ifdef DEBUG
+#include "debug.c"
+#endif
 
 /* initialize each replica in a random configuration */
 void init_replicas()
@@ -165,13 +272,18 @@ void init_replicas()
 
         for (j = 0; j < NED; j++)
         {
-            if (URAND() > 0.5) p->sp[j] = 1;
-            else
+            p->sp[j] = 1;
+            p->h2[j] = -NSGFES;
+        }
+
+        /* randomize spins */
+        for (j = 0; j < NED; j++)
+        {
+            if (URAND() < 0.5)
             {
                 p->sp[j] = -1;
                 p->energy += p->h2[j];
-                update(j, p->sp, p->nbr, p->h2);
-                update(j, p->sp, p->nbs, p->h2);
+                update(j, p->sp, p->nbr, p->nbs, p->h2);
             }
         }
     }
@@ -196,8 +308,7 @@ void sweep()
             {
                 p->sp[j] *= -1;
                 p->energy += delta;
-                update(j, p->sp, p->nbr, p->h2);
-                update(j, p->sp, p->nbs, p->h2);
+                update(j, p->sp, p->nbr, p->nbs, p->h2);
             }
         }
 #ifdef DEBUG
@@ -362,16 +473,16 @@ int main(int argc, char *argv[])
     }
     assert(nt > 1);
 
-    init_subgraph_table(subr, R, NSGFER);
-    init_subgraph_table(subs, S, NSGFES);
+    init_subgraph_table(subr, edgr, R, NSGR, NSGFER, nedr);
+    init_subgraph_table(subs, edgs, S, NSGS, NSGFES, neds);
     init_replicas();
 
     if (argc == 4) load_state(argv[3]);
 
     run();
     
-    free_subgraph_table(subr);
-    free_subgraph_table(subs);
+    free_subgraph_table(subr, edgr, NSGR);
+    free_subgraph_table(subs, edgs, NSGS);
 
     return EXIT_SUCCESS;
 }

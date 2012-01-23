@@ -1,8 +1,8 @@
-from numpy import *
+from scipy import *
 from matplotlib.pyplot import *
 from itertools import combinations
 
-def clique_count(a, m):
+def clique_count(a, s):
     """Determines the number of m-cliques in the graph represented by the
     adjacency matrix a
 
@@ -28,7 +28,7 @@ def clique_count(a, m):
     count = 0
 
     # iterate over all ways of choosing m vertices
-    for c in combinations(verts, m):
+    for c in combinations(verts, s):
         isclique = True
         for j, k in combinations(c, 2):
             if not a[j, k]:
@@ -39,8 +39,11 @@ def clique_count(a, m):
 
     return count
 
-def energy(a, n, m):
-    return clique_count(a, m) + clique_count(a==False, n)
+def energy(a, r, s):
+    return clique_count(a, r) + clique_count(a==False, s)
+
+def random_graph(nv):
+    return rand(nv, nv) < 0.5
 
 def draw(a, r, s):
     N = len(a)

@@ -67,7 +67,7 @@ void init_subgraph_table()
     int ps[NED];
     int pe[NSG];
     int c[S+2];     /* array of vertices of the current subgraph */
-    int ei, si;         /* edge index, subgraph index */
+    int ei, si;     /* edge index, subgraph index */
     int j, k;
 
     for (j = 0; j < NED; j++)
@@ -116,6 +116,7 @@ void init_subgraph_table()
                  * add subgraph si to list for edge ei,
                  * and edge ei to list for subgraph si
                  */
+
                 sub[ei][ps[ei]++] = si;
                 edg[si][pe[si]++] = ei;
             }

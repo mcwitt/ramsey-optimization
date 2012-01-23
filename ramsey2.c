@@ -260,7 +260,7 @@ void save_graph(int sp[NED], char filename[])
     fprintf(fp, "%d\n", R);
     fprintf(fp, "%d\n", S);
     
-    for (i = 0; i < NV; i++)
+    for (i = 0; i < NED; i++)
         fprintf(fp, "%d\n", (sp[i] == 1) ? 1 : 0);
 
     fclose(fp);
