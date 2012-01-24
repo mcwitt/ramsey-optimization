@@ -396,7 +396,7 @@ void run()
             {
                 min = p->energy;
                 print_status();
-                sprintf(filename, "%d-%d-%d_min.graph", S, S, NV);
+                sprintf(filename, "%d-%d-%d_%d.graph", S, S, NV, rseed);
                 save_graph(p->sp, filename);
 
                 if (p->energy == 0) { done = 1; break; }
