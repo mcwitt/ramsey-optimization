@@ -145,7 +145,7 @@ void free_subgraph_table()
         free(edg[i]);
 }
 
-void update(int ei, int sp[NED], int nb[NSG], int h2[NED])
+void update(int ei, int sp[], int nb[], int h2[])
 {
     int si, j, ej, nbf;
 

@@ -27,14 +27,6 @@
 
 #define URAND() dsfmt_genrand_close_open(&rstate)
 
-#if (S > R)
-#define MAX_RS  S
-#define MAX_NSG NSGS
-#else
-#define MAX_RS  R
-#define MAX_NSG NSGR
-#endif
-
 /* Replica-specific variables ************************************************/
 typedef struct
 {
@@ -80,12 +72,12 @@ clock_t start;  /* start time */
 #endif
 
 
-void init_subgraph_table(int *sub[NED], int *edg[NED], int t,
+void init_subgraph_table(int *sub[], int *edg[], int t,
         int nsg, int nsgfe, int nedsg)
 {
     int ps[NED];
-    int pe[MAX_NSG];
-    int c[MAX_RS];   /* array of vertices of the current subgraph */
+    int pe[nsg];    /* uses C99 auto dynamic arrays */
+    int c[t+2];     /* array of vertices of the current subgraph */
     int ei, si;     /* edge index, subgraph index */
     int j, k;
 
@@ -154,7 +146,7 @@ void init_subgraph_table(int *sub[NED], int *edg[NED], int t,
     }
 }
 
-void free_subgraph_table(int *sub[NED], int *edg[MAX_NSG], int nsg)
+void free_subgraph_table(int *sub[], int *edg[], int nsg)
 {
     int i;
 
@@ -164,7 +156,7 @@ void free_subgraph_table(int *sub[NED], int *edg[MAX_NSG], int nsg)
         free(edg[i]);
 }
 
-void update(int ei, int sp[NED], int nbr[NSGR], int nbs[NSGS], int h2[NED])
+void update(int ei, int sp[], int nbr[], int nbs[], int h2[])
 {
     int si, j, ej, nbf;
 

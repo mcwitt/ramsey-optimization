@@ -128,7 +128,7 @@ void free_subgraph_table()
         free(sub[i]);
 }
 
-int flip_energy(int sp, int *sub, int *nb)
+int flip_energy(int sp, int sub[], int nb[])
 {
     int i, nbi, delta;
 
@@ -156,7 +156,7 @@ int flip_energy(int sp, int *sub, int *nb)
     return delta;
 }
 
-void update_nb(int sp, int *sub, int *nb)
+void update_nb(int sp, int sub[], int nb[])
 {
     int i;
 
@@ -243,7 +243,7 @@ void temper()
     }
 }
 
-void save_graph(int sp[NED], char filename[])
+void save_graph(int sp[], char filename[])
 {
     FILE *fp;
     int i;

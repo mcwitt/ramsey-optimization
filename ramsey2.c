@@ -66,7 +66,7 @@ clock_t start;  /* start time */
 #endif
 
 
-void init_subgraph_table(int *sub[NED], int t, int nsgfe)
+void init_subgraph_table(int *sub[], int t, int nsgfe)
 {
     int p[NED]; /* positions in subgraph arrays */
     int c[t+2];         /* array of vertices of the current subgraph */
@@ -136,7 +136,7 @@ void free_subgraph_table(int *sub[NED])
         free(sub[i]);
 }
 
-int flip_energy(int sp, int *subr, int *subs, int *nbr, int *nbs)
+int flip_energy(int sp, int subr[], int subs[], int nbr[], int nbs[])
 {
     int i, delta;
 
