@@ -336,7 +336,7 @@ void run()
         if (nsweeps % WRITE_INTERVAL == 0)
         {
             sprintf(filename, "%d-%d-%d_%d.bin",
-                   R, S, NV, nsweeps/WRITE_INTERVAL);
+                   R, S, NV, rseed);
             save_state(filename);
             printf("state saved to %s\n", filename);
         }
