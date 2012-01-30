@@ -1,9 +1,6 @@
+from choose import choose
 import subprocess
 import sys
-
-sys.path.append('..')
-from choose import choose
-
 
 if len(sys.argv) == 3:
     s, nv = int(sys.argv[1]), int(sys.argv[2])

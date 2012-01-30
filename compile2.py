@@ -1,8 +1,6 @@
+from choose import choose
 import subprocess
 import sys
-
-sys.path.append('..')
-from choose import choose
 
 if len(sys.argv) == 4:
     r, s, nv = (int(arg) for arg in sys.argv[1:4])
@@ -18,7 +16,7 @@ nsgs = choose(nv, s)
 nsgfer = choose(nv-2, r-2)
 nsgfes = choose(nv-2, s-2)
 
-cmd = "make ramsey NV={} R={} S={} NED={} NSGR={} NSGS={} NSGFER={} NSGFES={}".format(
+cmd = "make ramsey2 NV={} R={} S={} NED={} NSGR={} NSGS={} NSGFER={} NSGFES={}".format(
             nv, r, s, ned, nsgr, nsgs, nsgfer, nsgfes
         ).split()
 
