@@ -1,7 +1,17 @@
 /*
- * To compile, run python compile2.py
+ * File: ramsey4.c
  *
- * Undefined constants (computed by compile2.py)
+ * Author: Matt Wittmann <mwittman@ucsc.edu>
+ *
+ * Description: Parallel tempering Monte Carlo code which attempts to minimize
+ * the number of r-cliques and s-independent sets of a graph given that it has
+ * N_v vertices. Energy is defined to be the sum of the number of r-cliques and
+ * s-independent sets. If for a given input (r, s, N_v) we find a zero-energy
+ * state, this implies that R(r, s) > N_v.
+ *
+ * To compile, run python compile4.py.
+ *
+ * Undefined constants (computed by compile4.py)
  *      NV      : number of vertices
  *      R       : red clique size
  *      S       : blue clique size
@@ -13,9 +23,7 @@
  *                  (=binomial(NV-2, S-2))
  */
 
-#define MAX_NT          32
-#define MAX_SWEEPS      10000
-#define WRITE_INTERVAL  10000
+#define MAX_NT 32   /* maximum number of parallel tempering replicas */
 
 #include <assert.h>
 #include <limits.h>
@@ -27,7 +35,7 @@
 
 #define URAND() dsfmt_genrand_close_open(&rstate)
 
-/* Replica-specific variables ************************************************/
+/* Strucure to store the configuration of one replica */
 typedef struct
 {
     int sp[NED];
@@ -56,8 +64,11 @@ int *edgs[NSGS];
 rep_t reps[MAX_NT]; /* storage for parallel tempering (PT) replicas */
 int ri[MAX_NT];     /* replica indices in order of increasing temperature */
 
-int nsweeps;    /* number of sweeps */
-int min;        /* lowest energy found */
+int nsweeps;        /* number of sweeps */
+int min;            /* lowest energy found */
+
+int max_sweeps;     /* number of sweeps to do before giving up */
+int write_interval; /* number of sweeps between file writes */
 
 int nT;                 /* number of PT copies */
 int nswaps[MAX_NT];     /* number of swaps between each pair of temperatures */
@@ -71,11 +82,10 @@ uint32_t rseed; /* seed used to initialize RNG */
 clock_t start;  /* start time */
 #endif
 
-void init_tabs(int *sub[], int *edg[], int t,
-        int nsg, int nsgfe, int nedsg)
+void init_tabs(int *sub[], int *edg[], int t, int nsgfe, int nedrs)
 {
-    int ps[NED];
-    int pe[nsg];    /* uses C99 auto dynamic arrays */
+    int ps[NED];    /* current positions in subgraph arrays */
+    int pe;         /* current position in edge array */
     int c[t+2];     /* array of vertices of the current subgraph */
     int ei, si;     /* edge index, subgraph index */
     int j, k;
@@ -84,12 +94,6 @@ void init_tabs(int *sub[], int *edg[], int t,
     {
         sub[j] = (int*) malloc(nsgfe * sizeof(int));
         ps[j] = 0;
-    }
-
-    for (j = 0; j < nsg; j++)
-    {
-        edg[j] = (int*) malloc(nedsg * sizeof(int));
-        pe[j] = 0;
     }
 
     /* 
@@ -115,6 +119,9 @@ void init_tabs(int *sub[], int *edg[], int t,
          * (algorithm guarantees that c_1 < c_2 < ... < c_t)
          */
 
+        edg[si] = (int*) malloc(nedrs * sizeof(int));
+        pe = 0;
+
         /* iterate over edges in this subgraph */
         for (k = 0; k < t; k++)
         {
@@ -123,12 +130,12 @@ void init_tabs(int *sub[], int *edg[], int t,
                 ei = c[k]*(c[k]-1)/2 + c[j];
 
                 /*
-                 * add subgraph si to list for edge ei,
-                 * and edge ei to list for subgraph si
+                 * add subgraph si to list for edge ei
+                 * add edge ei to list for subgraph si
                  */
 
                 sub[ei][ps[ei]++] = si;
-                edg[si][pe[si]++] = ei;
+                edg[si][pe++] = ei;
             }
         }
 
@@ -161,17 +168,19 @@ void update_fields(int ei, int sp[], int nbr[], int nbs[], int h2[])
 
     if (sp[ei] == 1)
     {
+        /* iterate over S-subgraphs including edge ei */
         for (si = 0; si < NSGFES; si++)
         {
             nbf = nbs[subs[ei][si]] += 1;
 
-            if (nbf == neds)    /* created blue clique */
+            if (nbf == neds)        /* flip created a blue clique */
             {
                 h2[ei] += 1;
                 for (j = 0; j < neds; j++) h2[edgs[subs[ei][si]][j]] -= 1;
             }
-            else if (nbf == nedsm1) /* created incomplete blue clique */
+            else if (nbf == nedsm1)
             {
+                /* flip created an incomplete blue clique (one edge short) */
                 for (j = 0; j < neds; j++)
                 {
                     ej = edgs[subs[ei][si]][j];
@@ -180,16 +189,17 @@ void update_fields(int ei, int sp[], int nbr[], int nbs[], int h2[])
             }
         }
 
+        /* iterate over R-subgraphs including edge ei */
         for (si = 0; si < NSGFER; si++)
         {
             nbf = nbr[subr[ei][si]] += 1;
 
-            if (nbf == 1)   /* destroyed red clique */
+            if (nbf == 1)       /* flip destroyed a red clique */
             {
                 h2[ei] += 1;
                 for (j = 0; j < nedr; j++) h2[edgr[subr[ei][si]][j]] -= 1;
             }
-            else if (nbf == 2)   /* destroyed incomplete red clique */
+            else if (nbf == 2)   /* flip destroyed an incomplete red clique */
             {
                 for (j = 0; j < nedr; j++)
                 {
@@ -205,7 +215,7 @@ void update_fields(int ei, int sp[], int nbr[], int nbs[], int h2[])
         {
             nbf = nbr[subr[ei][si]] -= 1;
 
-            if (nbf == 0)   /* created a red clique */
+            if (nbf == 0)       /* created a red clique */
             {
                 h2[ei] -= 1;
                 for (j = 0; j < nedr; j++) h2[edgr[subr[ei][si]][j]] += 1;
@@ -224,7 +234,7 @@ void update_fields(int ei, int sp[], int nbr[], int nbs[], int h2[])
         {
             nbf = nbs[subs[ei][si]] -= 1;
 
-            if (nbf == nedsm1)  /* destroyed a blue clique */
+            if (nbf == nedsm1)      /* destroyed a blue clique */
             {
                 h2[ei] -= 1;
                 for (j = 0; j < neds; j++) h2[edgs[subs[ei][si]][j]] += 1;
@@ -330,6 +340,7 @@ void init_replica_from_file(rep_t *p, char filename[])
     fclose(fp);
 }
 
+/* Update each spin once */
 void sweep()
 {
     rep_t *p;
@@ -433,14 +444,14 @@ void run()
     start = clock();
 #endif
 
-    while (! done && nsweeps < MAX_SWEEPS)
+    while (! done && nsweeps < max_sweeps)
     {
         sweep();
         nsweeps++;
 
         temper();
 
-        if (nsweeps % WRITE_INTERVAL == 0)
+        if (nsweeps % write_interval == 0)
         {
             for (iT = 0; iT < nT; iT++)
             {
@@ -476,12 +487,13 @@ int main(int argc, char *argv[])
 
     if (argc < 3)
     {
-        fprintf(stderr, "Usage: %s input_file seed [saved state]\n", argv[0]);
+        fprintf(stderr, "Usage: %s T_file max_sweeps write_interval"
+               "seed [saved state]\n", argv[0]);
         exit(EXIT_FAILURE);
     }
 
     /* init random number generator */
-    rseed = atoi(argv[2]);
+    rseed = atoi(argv[4]);
     dsfmt_init_gen_rand(&rstate, rseed);
 
     /* read temperatures from input file */
@@ -494,15 +506,19 @@ int main(int argc, char *argv[])
         nT++;
     }
     assert(nT > 1);
-    init_tabs(subr, edgr, R, NSGR, NSGFER, nedr);
-    init_tabs(subs, edgs, S, NSGS, NSGFES, neds);
 
-    if (argc == nT + 3) /* initial configuration specified for each replica */
+    max_sweeps = atoi(argv[2]);
+    write_interval = atoi(argv[3]);
+
+    init_tabs(subr, edgr, R, NSGFER, nedr);
+    init_tabs(subs, edgs, S, NSGFES, neds);
+
+    if (argc == nT + 5) /* initial configuration specified for each replica */
         for (iT = 0; iT < nT; iT++)
-            init_replica_from_file(&reps[iT], argv[iT+3]);
+            init_replica_from_file(&reps[iT], argv[iT+5]);
     else if (argc == 4) /* one configuration specified for all replicas */
     {
-        init_replica_from_file(&reps[0], argv[3]);
+        init_replica_from_file(&reps[0], argv[5]);
         for (iT = 0; iT < nT; iT++)
             reps[iT] = reps[0];
     }
@@ -517,7 +533,9 @@ int main(int argc, char *argv[])
     }
 
     run();
+
     free_tabs(subr, edgr, NSGR);
     free_tabs(subs, edgs, NSGS);
+
     return EXIT_SUCCESS;
 }

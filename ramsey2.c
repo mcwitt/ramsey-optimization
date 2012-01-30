@@ -1,5 +1,15 @@
 /*
- * To compile, run python compile2.py
+ * File: ramsey2.c
+ *
+ * Author: Matt Wittmann <mwittman@ucsc.edu>
+ *
+ * Description: Parallel tempering Monte Carlo code which attempts to minimize
+ * the number of r-cliques and s-independent sets of a graph given that it has
+ * N_v vertices. Energy is defined to be the sum of the number of r-cliques and
+ * s-independent sets. If for a given input (r, s, N_v) we find a zero-energy
+ * state, this implies that R(r, s) > N_v.
+ *
+ * To compile, run python compile2.py.
  *
  * Undefined constants (computed by compile2.py)
  *      NV      : number of vertices
@@ -11,11 +21,10 @@
  *      NSGFER  : number of subgraphs with R vertices including a given edge
  *      NSGFES  : number of subgraphs with S vertices including a given edge
  *                  (=binomial(NV-2, S-2))
+ *
  */
 
-#define MAX_NT          32
-#define MAX_SWEEPS      100
-#define WRITE_INTERVAL  1000
+#define MAX_NT 32  /* maximum number of parallel tempering replicas */
 
 #include <assert.h>
 #include <limits.h>
@@ -52,6 +61,9 @@ int ri[MAX_NT];     /* replica indices in order of increasing temperature */
 
 int nsweeps;    /* number of sweeps */
 int min;        /* lowest energy found */
+
+int max_sweeps;     /* number of sweeps to do before giving up */
+int write_interval; /* number of sweeps between file writes */
 
 int nt;                 /* number of PT copies */
 int nswaps[MAX_NT];     /* number of swaps between each pair of temperatures */
@@ -326,14 +338,14 @@ void run()
     start = clock();
 #endif
 
-    while (! done && nsweeps < MAX_SWEEPS)
+    while (! done && nsweeps < max_sweeps)
     {
         sweep();
         nsweeps++;
 
         temper();
 
-        if (nsweeps % WRITE_INTERVAL == 0)
+        if (nsweeps % write_interval == 0)
         {
             sprintf(filename, "%d-%d-%d_%d.bin",
                    R, S, NV, rseed);
@@ -364,29 +376,36 @@ int main(int argc, char *argv[])
     FILE *infile;
     double t;
 
-    if (argc != 3 && argc != 4)
+    if (argc != 5 && argc != 6)
     {
-        fprintf(stderr, "Usage: %s input_file seed [saved state]\n", argv[0]);
+        fprintf(stderr, "Usage: %s T_file max_sweeps write_interval"
+                "seed [saved state]\n", argv[0]);
         exit(EXIT_FAILURE);
     }
 
     /* init random number generator */
-    rseed = atoi(argv[2]);
+    rseed = atoi(argv[4]);
     dsfmt_init_gen_rand(&rstate, rseed);
 
     /* read temperatures from input file */
     nt = 0;
     infile = fopen(argv[1], "r");
+
     while (fscanf(infile, "%lf", &t) != EOF && nt < MAX_NT)
     {
         T[nt] = t;
         mbeta[nt] = -1./t;
         nt++;
     }
+
     assert(nt > 1);
+
+    max_sweeps = atoi(argv[2]);
+    write_interval = atoi(argv[3]);
 
     init_subgraph_table(subr, R, NSGFER);
     init_subgraph_table(subs, S, NSGFES);
+
     init_replicas();
 
     if (argc == 4) load_state(argv[3]);

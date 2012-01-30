@@ -13,3 +13,15 @@ def choose(n, k):
             r /= d
             d -= 1
     return r
+
+if __name__=='__main__':
+    import sys
+
+    if len(sys.argv) == 3:
+        n, k = (int(arg) for arg in sys.argv[1:])
+    else:
+        n = input('n = ')
+        k = input('k = ')
+
+    print choose(n, k)
+
