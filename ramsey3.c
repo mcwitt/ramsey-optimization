@@ -30,7 +30,7 @@ typedef struct
     int sp[NED];
     int h2[NED];    /* local field at each edge (doubled) */
     int nb[NSG];    /* number of blue edges in each S-subgraph */
-    int energy;     /* number of blue S-cliques and red S-cliques */
+    int en;     /* number of blue S-cliques and red S-cliques */
 } rep_t;
 
 /* Global variables **********************************************************/
@@ -62,7 +62,7 @@ uint32_t rseed; /* seed used to initialize RNG */
 clock_t start;  /* start time */
 #endif
 
-void init_subgraph_table()
+void init_tabs()
 {
     int ps[NED];
     int pe[NSG];
@@ -135,7 +135,7 @@ void init_subgraph_table()
     }
 }
 
-void free_subgraph_table()
+void free_tabs()
 {
     int i;
 
@@ -145,7 +145,7 @@ void free_subgraph_table()
         free(edg[i]);
 }
 
-void update(int ei, int sp[], int nb[], int h2[])
+void update_fields(int ei, int sp[], int nb[], int h2[])
 {
     int si, j, ej, nbf;
 
@@ -218,38 +218,70 @@ void update(int ei, int sp[], int nb[], int h2[])
 #include "debug.c"
 #endif
 
-/* initialize each replica in a random configuration */
-void init_replicas()
+/* Initialize replica with all edges blue */
+void init_replica(rep_t *p)
 {
-    rep_t *p;
-    int it, j;
+    int j;
 
-    for (it = 0; it < nt; it++)
+    p->en = NSG;
+    for (j = 0; j < NSG; j++) p->nb[j] = neds;
+    for (j = 0; j < NED; j++)
     {
-        ri[it] = it;
-        p = &reps[it];
-        p->energy = NSG;
-        nswaps[it] = 0;
+        p->sp[j] = 1;
+        p->h2[j] = -NSGFE;
+    }
+}
 
-        for (j = 0; j < NSG; j++) p->nb[j] = neds;
+/*
+ * Put replica in a random state with equal numbers of red and blue edges on
+ * average
+ */
+void randomize(rep_t *p)
+{
+    int j;
 
-        for (j = 0; j < NED; j++)
+    init_replica(p);
+
+    /* randomize spins, updating fields with each flip */
+    for (j = 0; j < NED; j++)
+    {
+        if (URAND() < 0.5)
         {
-            p->sp[j] = 1;
-            p->h2[j] = -NSGFE;
-        }
-
-        /* randomize spins */
-        for (j = 0; j < NED; j++)
-        {
-            if (URAND() < 0.5)
-            {
-                p->sp[j] = -1;
-                p->energy += p->h2[j];
-                update(j, p->sp, p->nb, p->h2);
-            }
+            p->sp[j] = -1;
+            p->en += p->h2[j];
+            update_fields(j, p->sp, p->nb, p->h2);
         }
     }
+}
+
+/*
+ * Load replica configuration from a file
+ */
+void load_config(rep_t *p, char filename[])
+{
+    FILE *fp;
+    int nv, success, sp, j;
+
+    fp = fopen(filename, "r");
+    if (! fscanf(fp, "%d", &nv)) 
+    {
+        fprintf(stderr, "error while reading %s\n", filename);
+        exit(1);
+    }
+
+    j = NV - nv;
+
+    while (fscanf(fp, "%d", &sp) != EOF)
+    {
+        if (sp == -1)
+        {
+            p->sp[j] = -1;
+            p->en += h->h2[j];
+            update_fields(j, p->sp, p->nb, p->h2);
+        }
+        j++;
+    }
+    fclose(fp);
 }
 
 void sweep()
@@ -270,12 +302,12 @@ void sweep()
             if (delta <= 0 || URAND() < exp(mbeta[it]*delta))
             {
                 p->sp[j] *= -1;
-                p->energy += delta;
-                update(j, p->sp, p->nb, p->h2);
+                p->en += delta;
+                update_fields(j, p->sp, p->nb, p->h2);
             }
         }
 #ifdef DEBUG
-        assert(debug_energy(p->sp) == p->energy);
+        assert(debug_energy(p->sp) == p->en);
 #endif
     }   /* end of loop over temperatures */
 }
@@ -287,7 +319,7 @@ void temper()
 
     for (it = 1; it < nt; it++)
     {
-        logar = (reps[ri[it-1]].energy - reps[ri[it]].energy)
+        logar = (reps[ri[it-1]].en - reps[ri[it]].en)
             * (mbeta[it] - mbeta[it-1]);
 
         if (URAND() < exp(logar))
@@ -353,7 +385,7 @@ void print_status()
     printf("sweep rate      : %.2f / s\n", (float) nsweeps/trun);
 #endif
     for (it = 0; it < nt; it++)
-        printf("%5d ", reps[ri[it]].energy);
+        printf("%5d ", reps[ri[it]].en);
     printf("\n");
     for (it = 0; it < nt; it++)
         printf("%5.2f ", T[it]);
@@ -392,14 +424,14 @@ void run()
         for (it = 0; it < nt; it++)
         {
             p = &reps[ri[it]];
-            if (p->energy < min)
+            if (p->en < min)
             {
-                min = p->energy;
+                min = p->en;
                 print_status();
                 sprintf(filename, "%d-%d-%d_%d.graph", S, S, NV, rseed);
                 save_graph(p->sp, filename);
 
-                if (p->energy == 0) { done = 1; break; }
+                if (p->en == 0) { done = 1; break; }
             }
         }
     }
@@ -432,15 +464,40 @@ int main(int argc, char *argv[])
         nt++;
     }
     assert(nt > 1);
+    init_tabs();
 
-    init_subgraph_table();
-    init_replicas();
+    if (argc == nT + 3) /* initial configuration specified for each replica */
+    {
+        for (iT = 0; iT < nT; iT++)
+        {
+            init_replica(&reps[iT]);
+            randomize(&reps[iT]);
+            load_config(&reps[iT], argv[iT+3]);
+        }
+    }
+    else if (argc == 4) /* one configuration specified for all replicas */
+    {
+        init_replica(&reps);
+        randomize(&reps);
+        load_config(&reps, argv[3]);
+        for (iT = 0; iT < nT; iT++)
+            memcpy(&reps[iT], &reps, sizeof(rep_t));
+    }
+    else    /* no configurations specified, init replicas in random state */
+    {
+        for (iT = 0; iT < nT; iT++)
+        {
+            init_replica(&reps[iT]);
+            randomize(&reps[iT]);
+        }
+    }
 
-    if (argc == 4) load_state(argv[3]);
-
+    for (iT = 0; iT < nT; iT++)
+    {
+        ri[iT] = iT;
+        nswaps[iT] = 0;
+    }
     run();
-    
-    free_subgraph_table();
-
+    free_tabs();
     return EXIT_SUCCESS;
 }

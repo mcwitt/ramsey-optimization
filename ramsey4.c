@@ -34,7 +34,7 @@ typedef struct
     int h2[NED];
     int nbr[NSGR];  /* number of blue edges in each R-subgraph */
     int nbs[NSGS];  /* number of blue edges in each S-subgraph */
-    int energy;     /* number of blue S-cliques and red R-cliques */
+    int en;     /* number of blue S-cliques and red R-cliques */
 } rep_t;
 
 /* Global variables **********************************************************/
@@ -71,8 +71,7 @@ uint32_t rseed; /* seed used to initialize RNG */
 clock_t start;  /* start time */
 #endif
 
-
-void init_subgraph_table(int *sub[], int *edg[], int t,
+void init_tabs(int *sub[], int *edg[], int t,
         int nsg, int nsgfe, int nedsg)
 {
     int ps[NED];
@@ -146,7 +145,7 @@ void init_subgraph_table(int *sub[], int *edg[], int t,
     }
 }
 
-void free_subgraph_table(int *sub[], int *edg[], int nsg)
+void free_tabs(int *sub[], int *edg[], int nsg)
 {
     int i;
 
@@ -156,7 +155,7 @@ void free_subgraph_table(int *sub[], int *edg[], int nsg)
         free(edg[i]);
 }
 
-void update(int ei, int sp[], int nbr[], int nbs[], int h2[])
+void update_fields(int ei, int sp[], int nbr[], int nbs[], int h2[])
 {
     int si, j, ej, nbf;
 
@@ -246,49 +245,81 @@ void update(int ei, int sp[], int nbr[], int nbs[], int h2[])
 #include "debug.c"
 #endif
 
-/* initialize each replica in a random configuration */
-void init_replicas()
+/* Initialize replica with all edges blue */
+void init_replica(rep_t *p)
 {
-    rep_t *p;
-    int it, j;
+    int j;
 
-    for (it = 0; it < nt; it++)
+    p->en = NSGS;
+    for (j = 0; j < NSGR; j++) p->nbr[j] = nedr;
+    for (j = 0; j < NSGS; j++) p->nbs[j] = neds;
+    for (j = 0; j < NED; j++)
     {
-        ri[it] = it;
-        p = &reps[it];
-        p->energy = NSGS;
-        nswaps[it] = 0;
+        p->sp[j] = 1;
+        p->h2[j] = -NSGFES;
+    }
+}
 
-        for (j = 0; j < NSGR; j++) p->nbr[j] = nedr;
-        for (j = 0; j < NSGS; j++) p->nbs[j] = neds;
+/*
+ * Put replica in a random state with equal numbers of red and blue edges on
+ * average
+ */
+void randomize(rep_t *p)
+{
+    int j;
 
-        for (j = 0; j < NED; j++)
+    /* randomize spins */
+    for (j = 0; j < NED; j++)
+    {
+        if (URAND() < 0.5)
         {
-            p->sp[j] = 1;
-            p->h2[j] = -NSGFES;
-        }
-
-        /* randomize spins */
-        for (j = 0; j < NED; j++)
-        {
-            if (URAND() < 0.5)
-            {
-                p->sp[j] = -1;
-                p->energy += p->h2[j];
-                update(j, p->sp, p->nbr, p->nbs, p->h2);
-            }
+            p->sp[j] = -1;
+            p->en += p->h2[j];
+            update_fields(j, p->sp, p->nbr, p->nbs, p->h2);
         }
     }
+}
+
+/*
+ * Load replica configuration from a file. If the file specifies a graph with
+ * fewer than NV vertices, initialize the unspecified edges randomly with equal
+ * probabilities for red and blue.
+ */
+void load_config(rep_t *p, char filename[])
+{
+    FILE *fp;
+    int nv, success, sp, j;
+
+    fp = fopen(filename, "r");
+    if (! fscanf(fp, "%d", &nv)) 
+    {
+        fprintf(stderr, "error while reading %s\n", filename);
+        exit(1);
+    }
+
+    j = NV - nv;
+
+    while (fscanf(fp, "%d", &sp) != EOF)
+    {
+        if (sp == -1)
+        {
+            p->sp[j] = -1;
+            p->en += h->h2[j];
+            update_fields(j, p->sp, p->nbr, p->nbs, p->h2);
+        }
+        j++;
+    }
+    fclose(fp);
 }
 
 void sweep()
 {
     rep_t *p;
-    int it, j, delta;
+    int iT, j, delta;
 
-    for (it = 0; it < nt; it++)
+    for (iT = 0; iT < nt; iT++)
     {
-        p = &reps[ri[it]];
+        p = &reps[ri[iT]];
         
         for (j = 0; j < NED; j++)
         {
@@ -296,15 +327,15 @@ void sweep()
             delta = p->h2[j]*p->sp[j];
 
             /* flip with Metropolis probability */
-            if (delta <= 0 || URAND() < exp(mbeta[it]*delta))
+            if (delta <= 0 || URAND() < exp(mbeta[iT]*delta))
             {
                 p->sp[j] *= -1;
-                p->energy += delta;
-                update(j, p->sp, p->nbr, p->nbs, p->h2);
+                p->en += delta;
+                update_fields(j, p->sp, p->nbr, p->nbs, p->h2);
             }
         }
 #ifdef DEBUG
-        assert(debug_energy(p->sp) == p->energy);
+        assert(debug_energy(p->sp) == p->en);
 #endif
     }   /* end of loop over temperatures */
 }
@@ -312,20 +343,20 @@ void sweep()
 void temper()
 {
     double logar;
-    int it, copy;
+    int iT, copy;
 
-    for (it = 1; it < nt; it++)
+    for (iT = 1; iT < nt; iT++)
     {
-        logar = (reps[ri[it-1]].energy - reps[ri[it]].energy)
-            * (mbeta[it] - mbeta[it-1]);
+        logar = (reps[ri[iT-1]].en - reps[ri[iT]].en)
+            * (mbeta[iT] - mbeta[iT-1]);
 
         if (URAND() < exp(logar))
         {
             /* do PT swap */
-            copy = ri[it-1];
-            ri[it-1] = ri[it];
-            ri[it] = copy;
-            nswaps[it]++;
+            copy = ri[iT-1];
+            ri[iT-1] = ri[iT];
+            ri[iT] = copy;
+            nswaps[iT]++;
         }
     }
 }
@@ -368,7 +399,7 @@ void load_state(char filename[])
 
 void print_status()
 {
-    int it;
+    int iT;
 #ifndef NOTIME
     int trun;
 #endif
@@ -381,14 +412,14 @@ void print_status()
     printf("time running    : %d seconds\n", trun);
     printf("sweep rate      : %.2f / s\n", (float) nsweeps/trun);
 #endif
-    for (it = 0; it < nt; it++)
-        printf("%5d ", reps[ri[it]].energy);
+    for (iT = 0; iT < nt; iT++)
+        printf("%5d ", reps[ri[iT]].en);
     printf("\n");
-    for (it = 0; it < nt; it++)
-        printf("%5.2f ", T[it]);
+    for (iT = 0; iT < nt; iT++)
+        printf("%5.2f ", T[iT]);
     printf("\n   ");
-    for (it = 1; it < nt; it++)
-        printf("%5.2f ", (float) nswaps[it]/nsweeps);
+    for (iT = 1; iT < nt; iT++)
+        printf("%5.2f ", (float) nswaps[iT]/nsweeps);
     printf("\n");
     fflush(stdout);
 }
@@ -397,7 +428,7 @@ void run()
 {
     rep_t *p;
     char filename[256];
-    int it, done;
+    int iT, done;
 
     min = INT_MAX;
     nsweeps = 0;
@@ -421,17 +452,17 @@ void run()
             printf("state saved to %s\n", filename);
         }
 
-        for (it = 0; it < nt; it++)
+        for (iT = 0; iT < nt; iT++)
         {
-            p = &reps[ri[it]];
-            if (p->energy < min)
+            p = &reps[ri[iT]];
+            if (p->en < min)
             {
-                min = p->energy;
+                min = p->en;
                 print_status();
                 sprintf(filename, "%d-%d-%d_%d.graph", R, S, NV, rseed);
                 save_graph(p->sp, filename);
 
-                if (p->energy == 0) { done = 1; break; }
+                if (p->en == 0) { done = 1; break; }
             }
         }
     }
@@ -464,17 +495,42 @@ int main(int argc, char *argv[])
         nt++;
     }
     assert(nt > 1);
+    init_tabs(subr, edgr, R, NSGR, NSGFER, nedr);
+    init_tabs(subs, edgs, S, NSGS, NSGFES, neds);
 
-    init_subgraph_table(subr, edgr, R, NSGR, NSGFER, nedr);
-    init_subgraph_table(subs, edgs, S, NSGS, NSGFES, neds);
-    init_replicas();
+    if (argc == nT + 3) /* initial configuration specified for each replica */
+    {
+        for (iT = 0; iT < nT; iT++)
+        {
+            init_replica(&reps[iT]);
+            randomize(&reps[iT]);
+            load_config(&reps[iT], argv[iT+3]);
+        }
+    }
+    else if (argc == 4) /* one configuration specified for all replicas */
+    {
+        init_replica(&reps);
+        randomize(&reps);
+        load_config(&reps, argv[3]);
+        for (iT = 0; iT < nT; iT++)
+            memcpy(&reps[iT], &reps, sizeof(rep_t));
+    }
+    else    /* no configurations specified, init replicas in random state */
+    {
+        for (iT = 0; iT < nT; iT++)
+        {
+            init_replica(&reps[iT]);
+            randomize(&reps[iT]);
+        }
+    }
 
-    if (argc == 4) load_state(argv[3]);
-
+    for (iT = 0; iT < nT; iT++)
+    {
+        ri[iT] = iT;
+        nswaps[iT] = 0;
+    }
     run();
-    
-    free_subgraph_table(subr, edgr, NSGR);
-    free_subgraph_table(subs, edgs, NSGS);
-
+    free_tabs(subr, edgr, NSGR);
+    free_tabs(subs, edgs, NSGS);
     return EXIT_SUCCESS;
 }
