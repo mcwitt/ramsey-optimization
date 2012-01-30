@@ -50,7 +50,7 @@ int ri[MAX_NT];     /* replica indices in order of increasing temperature */
 int nsweeps;    /* number of sweeps */
 int min;        /* lowest energy found */
 
-int nt;                 /* number of PT copies */
+int nT;                 /* number of PT copies */
 int nswaps[MAX_NT];     /* number of swaps between each pair of temperatures */
 double T[MAX_NT];       /* array of temperatures */
 double mbeta[MAX_NT];   /* negative inverse temperatures */
@@ -260,7 +260,7 @@ void randomize(rep_t *p)
 void load_config(rep_t *p, char filename[])
 {
     FILE *fp;
-    int nv, success, sp, j;
+    int nv, sp, j;
 
     fp = fopen(filename, "r");
     if (! fscanf(fp, "%d", &nv)) 
@@ -276,7 +276,7 @@ void load_config(rep_t *p, char filename[])
         if (sp == -1)
         {
             p->sp[j] = -1;
-            p->en += h->h2[j];
+            p->en += p->h2[j];
             update_fields(j, p->sp, p->nb, p->h2);
         }
         j++;
@@ -287,11 +287,11 @@ void load_config(rep_t *p, char filename[])
 void sweep()
 {
     rep_t *p;
-    int it, j, delta;
+    int iT, j, delta;
 
-    for (it = 0; it < nt; it++)
+    for (iT = 0; iT < nT; iT++)
     {
-        p = &reps[ri[it]];
+        p = &reps[ri[iT]];
 
         for (j = 0; j < NED; j++)
         {
@@ -299,7 +299,7 @@ void sweep()
             delta = p->h2[j]*p->sp[j];
 
             /* flip with Metropolis probability */
-            if (delta <= 0 || URAND() < exp(mbeta[it]*delta))
+            if (delta <= 0 || URAND() < exp(mbeta[iT]*delta))
             {
                 p->sp[j] *= -1;
                 p->en += delta;
@@ -315,20 +315,20 @@ void sweep()
 void temper()
 {
     double logar;
-    int it, copy;
+    int iT, copy;
 
-    for (it = 1; it < nt; it++)
+    for (iT = 1; iT < nT; iT++)
     {
-        logar = (reps[ri[it-1]].en - reps[ri[it]].en)
-            * (mbeta[it] - mbeta[it-1]);
+        logar = (reps[ri[iT-1]].en - reps[ri[iT]].en)
+            * (mbeta[iT] - mbeta[iT-1]);
 
         if (URAND() < exp(logar))
         {
             /* do PT swap */
-            copy = ri[it-1];
-            ri[it-1] = ri[it];
-            ri[it] = copy;
-            nswaps[it]++;
+            copy = ri[iT-1];
+            ri[iT-1] = ri[iT];
+            ri[iT] = copy;
+            nswaps[iT]++;
         }
     }
 }
@@ -354,8 +354,8 @@ void save_state(char filename[])
     FILE *fp;
 
     fp = fopen(filename, "w");
-    fwrite(ri, sizeof(int), nt, fp);
-    fwrite(reps, sizeof(rep_t), nt, fp);
+    fwrite(ri, sizeof(int), nT, fp);
+    fwrite(reps, sizeof(rep_t), nT, fp);
     fclose(fp);
 }
 
@@ -364,14 +364,14 @@ void load_state(char filename[])
     FILE *fp;
 
     fp = fopen(filename, "r");
-    assert(fread(ri, sizeof(int), nt, fp) == nt);
-    assert(fread(reps, sizeof(rep_t), nt, fp) == nt);
+    assert(fread(ri, sizeof(int), nT, fp) == nT);
+    assert(fread(reps, sizeof(rep_t), nT, fp) == nT);
     fclose(fp);
 }
 
 void print_status()
 {
-    int it;
+    int iT;
 #ifndef NOTIME
     int trun;
 #endif
@@ -384,14 +384,14 @@ void print_status()
     printf("time running    : %d seconds\n", trun);
     printf("sweep rate      : %.2f / s\n", (float) nsweeps/trun);
 #endif
-    for (it = 0; it < nt; it++)
-        printf("%5d ", reps[ri[it]].en);
+    for (iT = 0; iT < nT; iT++)
+        printf("%5d ", reps[ri[iT]].en);
     printf("\n");
-    for (it = 0; it < nt; it++)
-        printf("%5.2f ", T[it]);
+    for (iT = 0; iT < nT; iT++)
+        printf("%5.2f ", T[iT]);
     printf("\n   ");
-    for (it = 1; it < nt; it++)
-        printf("%5.2f ", (float) nswaps[it]/nsweeps);
+    for (iT = 1; iT < nT; iT++)
+        printf("%5.2f ", (float) nswaps[iT]/nsweeps);
     printf("\n");
     fflush(stdout);
 }
@@ -400,7 +400,7 @@ void run()
 {
     rep_t *p;
     char filename[256];
-    int it, done;
+    int iT, done;
 
     min = INT_MAX;
     nsweeps = 0;
@@ -421,9 +421,9 @@ void run()
             printf("state saved to %s\n", filename);
         }
 
-        for (it = 0; it < nt; it++)
+        for (iT = 0; iT < nT; iT++)
         {
-            p = &reps[ri[it]];
+            p = &reps[ri[iT]];
             if (p->en < min)
             {
                 min = p->en;
@@ -443,6 +443,7 @@ int main(int argc, char *argv[])
 {
     FILE *infile;
     double t;
+    int iT;
 
     if (argc != 3 && argc != 4)
     {
@@ -455,15 +456,15 @@ int main(int argc, char *argv[])
     dsfmt_init_gen_rand(&rstate, rseed);
 
     /* read temperatures from input file */
-    nt = 0;
+    nT = 0;
     infile = fopen(argv[1], "r");
-    while (fscanf(infile, "%lf", &t) != EOF && nt < MAX_NT)
+    while (fscanf(infile, "%lf", &t) != EOF && nT < MAX_NT)
     {
-        T[nt] = t;
-        mbeta[nt] = -1./t;
-        nt++;
+        T[nT] = t;
+        mbeta[nT] = -1./t;
+        nT++;
     }
-    assert(nt > 1);
+    assert(nT > 1);
     init_tabs();
 
     if (argc == nT + 3) /* initial configuration specified for each replica */
@@ -477,11 +478,11 @@ int main(int argc, char *argv[])
     }
     else if (argc == 4) /* one configuration specified for all replicas */
     {
-        init_replica(&reps);
-        randomize(&reps);
-        load_config(&reps, argv[3]);
+        init_replica(&reps[0]);
+        randomize(&reps[0]);
+        load_config(&reps[0], argv[3]);
         for (iT = 0; iT < nT; iT++)
-            memcpy(&reps[iT], &reps, sizeof(rep_t));
+            reps[iT] = reps[0];
     }
     else    /* no configurations specified, init replicas in random state */
     {

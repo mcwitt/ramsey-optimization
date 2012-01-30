@@ -14,7 +14,7 @@
  */
 
 #define MAX_NT          32
-#define MAX_SWEEPS      10000
+#define MAX_SWEEPS      100
 #define WRITE_INTERVAL  10000
 
 #include <assert.h>
@@ -59,7 +59,7 @@ int ri[MAX_NT];     /* replica indices in order of increasing temperature */
 int nsweeps;    /* number of sweeps */
 int min;        /* lowest energy found */
 
-int nt;                 /* number of PT copies */
+int nT;                 /* number of PT copies */
 int nswaps[MAX_NT];     /* number of swaps between each pair of temperatures */
 double T[MAX_NT];       /* array of temperatures */
 double mbeta[MAX_NT];   /* negative inverse temperatures */
@@ -288,7 +288,7 @@ void randomize(rep_t *p)
 void load_config(rep_t *p, char filename[])
 {
     FILE *fp;
-    int nv, success, sp, j;
+    int nv, sp, j;
 
     fp = fopen(filename, "r");
     if (! fscanf(fp, "%d", &nv)) 
@@ -304,7 +304,7 @@ void load_config(rep_t *p, char filename[])
         if (sp == -1)
         {
             p->sp[j] = -1;
-            p->en += h->h2[j];
+            p->en += p->h2[j];
             update_fields(j, p->sp, p->nbr, p->nbs, p->h2);
         }
         j++;
@@ -317,7 +317,7 @@ void sweep()
     rep_t *p;
     int iT, j, delta;
 
-    for (iT = 0; iT < nt; iT++)
+    for (iT = 0; iT < nT; iT++)
     {
         p = &reps[ri[iT]];
         
@@ -345,7 +345,7 @@ void temper()
     double logar;
     int iT, copy;
 
-    for (iT = 1; iT < nt; iT++)
+    for (iT = 1; iT < nT; iT++)
     {
         logar = (reps[ri[iT-1]].en - reps[ri[iT]].en)
             * (mbeta[iT] - mbeta[iT-1]);
@@ -382,8 +382,8 @@ void save_state(char filename[])
     FILE *fp;
 
     fp = fopen(filename, "w");
-    fwrite(ri, sizeof(int), nt, fp);
-    fwrite(reps, sizeof(rep_t), nt, fp);
+    fwrite(ri, sizeof(int), nT, fp);
+    fwrite(reps, sizeof(rep_t), nT, fp);
     fclose(fp);
 }
 
@@ -392,8 +392,8 @@ void load_state(char filename[])
     FILE *fp;
 
     fp = fopen(filename, "r");
-    assert(fread(ri, sizeof(int), nt, fp) == nt);
-    assert(fread(reps, sizeof(rep_t), nt, fp) == nt);
+    assert(fread(ri, sizeof(int), nT, fp) == nT);
+    assert(fread(reps, sizeof(rep_t), nT, fp) == nT);
     fclose(fp);
 }
 
@@ -412,13 +412,13 @@ void print_status()
     printf("time running    : %d seconds\n", trun);
     printf("sweep rate      : %.2f / s\n", (float) nsweeps/trun);
 #endif
-    for (iT = 0; iT < nt; iT++)
+    for (iT = 0; iT < nT; iT++)
         printf("%5d ", reps[ri[iT]].en);
     printf("\n");
-    for (iT = 0; iT < nt; iT++)
+    for (iT = 0; iT < nT; iT++)
         printf("%5.2f ", T[iT]);
     printf("\n   ");
-    for (iT = 1; iT < nt; iT++)
+    for (iT = 1; iT < nT; iT++)
         printf("%5.2f ", (float) nswaps[iT]/nsweeps);
     printf("\n");
     fflush(stdout);
@@ -452,7 +452,7 @@ void run()
             printf("state saved to %s\n", filename);
         }
 
-        for (iT = 0; iT < nt; iT++)
+        for (iT = 0; iT < nT; iT++)
         {
             p = &reps[ri[iT]];
             if (p->en < min)
@@ -474,6 +474,7 @@ int main(int argc, char *argv[])
 {
     FILE *infile;
     double t;
+    int iT;
 
     if (argc != 3 && argc != 4)
     {
@@ -486,15 +487,15 @@ int main(int argc, char *argv[])
     dsfmt_init_gen_rand(&rstate, rseed);
 
     /* read temperatures from input file */
-    nt = 0;
+    nT = 0;
     infile = fopen(argv[1], "r");
-    while (fscanf(infile, "%lf", &t) != EOF && nt < MAX_NT)
+    while (fscanf(infile, "%lf", &t) != EOF && nT < MAX_NT)
     {
-        T[nt] = t;
-        mbeta[nt] = -1./t;
-        nt++;
+        T[nT] = t;
+        mbeta[nT] = -1./t;
+        nT++;
     }
-    assert(nt > 1);
+    assert(nT > 1);
     init_tabs(subr, edgr, R, NSGR, NSGFER, nedr);
     init_tabs(subs, edgs, S, NSGS, NSGFES, neds);
 
@@ -509,11 +510,11 @@ int main(int argc, char *argv[])
     }
     else if (argc == 4) /* one configuration specified for all replicas */
     {
-        init_replica(&reps);
-        randomize(&reps);
-        load_config(&reps, argv[3]);
+        init_replica(&reps[0]);
+        randomize(&reps[0]);
+        load_config(&reps[0], argv[3]);
         for (iT = 0; iT < nT; iT++)
-            memcpy(&reps[iT], &reps, sizeof(rep_t));
+            reps[iT] = reps[0];
     }
     else    /* no configurations specified, init replicas in random state */
     {
