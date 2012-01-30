@@ -40,10 +40,10 @@ def clique_count(a, s):
     return count
 
 def energy(a, r, s):
-    return clique_count(a, r) + clique_count(a==False, s)
+    return clique_count(a==False, r) + clique_count(a, s)
 
 def random_graph(nv):
-    return rand(nv, nv) < 0.5
+    return (rand(nv, nv) < 0.5).astype(int)
 
 def draw(a, r, s):
     N = len(a)
@@ -99,21 +99,20 @@ def draw(a, r, s):
 
     show()
 
-def read(filename):
+def load_graph(filename):
     with open(filename, 'r') as f:
         nv = int(f.readline())
-        r = int(f.readline())
-        s = int(f.readline())
-
-        a = zeros((nv, nv))
+        a = empty((nv, nv))
         for k in xrange(nv):
             for j in xrange(k):
                 a[j, k] = int(f.readline())
-    return a, nv, r, s
+    return a
 
 if __name__=='__main__':
     import sys
     if len(sys.argv) == 2:
-        a, nv, r, s = read(sys.argv[1])
-        print energy(a, r, s)
-        draw(a, r, s)
+        a = load_graph(sys.argv[1])
+        r = input('r = ')
+        s = input('s = ')
+        print 'E = {}'.format(energy(a, r, s))
+        #draw(a, r, s)

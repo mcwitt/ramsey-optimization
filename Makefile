@@ -8,13 +8,13 @@ OBJECTS = dSFMT.o
 .PHONY: ramsey ramsey2 ramsey3 ramsey4
 
 ramsey: ramsey.c dSFMT.o
-	gcc -DNOTIME -DNSG=$(NSG) -DNSGFE=$(NSGFE) -o $@_$S-$S-$(NV).out $^ $(CFLAGS)
+	$(CC) -DNSG=$(NSG) -DNSGFE=$(NSGFE) -o $@_$S-$S-$(NV).out $^ $(CFLAGS)
 
 ramsey2: ramsey2.c dSFMT.o
-	gcc -DNOTIME -DR=$R -DNSGR=$(NSGR) -DNSGS=$(NSGS) -DNSGFER=$(NSGFER) -DNSGFES=$(NSGFES) -o $@_$R-$S-$(NV).out $^ $(CFLAGS)
+	$(CC) -DR=$R -DNSGR=$(NSGR) -DNSGS=$(NSGS) -DNSGFER=$(NSGFER) -DNSGFES=$(NSGFES) -o $@_$R-$S-$(NV).out $^ $(CFLAGS)
 
 ramsey3: ramsey3.c dSFMT.o
-	gcc -DNOTIME -DNSG=$(NSG) -DNSGFE=$(NSGFE) -o $@_$S-$S-$(NV).out $^ $(CFLAGS)
+	$(CC) -DNSG=$(NSG) -DNSGFE=$(NSGFE) -o $@_$S-$S-$(NV).out $^ $(CFLAGS)
 
 ramsey4: ramsey4.c dSFMT.o
-	gcc -DNOTIME -DR=$R -DNED=$(NED) -DNSGR=$(NSGR) -DNSGS=$(NSGS) -DNSGFER=$(NSGFER) -DNSGFES=$(NSGFES) -o $@_$R-$S-$(NV).out $^ $(CFLAGS)
+	$(CC) -DR=$R -DNED=$(NED) -DNSGR=$(NSGR) -DNSGS=$(NSGS) -DNSGFER=$(NSGFER) -DNSGFES=$(NSGFES) -o $@_$R-$S-$(NV).out $^ $(CFLAGS)

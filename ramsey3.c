@@ -11,8 +11,8 @@
  */
 
 #define MAX_NT          32
-#define MAX_SWEEPS      100
-#define WRITE_INTERVAL  1000
+#define MAX_SWEEPS      50
+#define WRITE_INTERVAL  10000
 
 #include <assert.h>
 #include <limits.h>
@@ -30,7 +30,7 @@ typedef struct
     int sp[NED];
     int h2[NED];    /* local field at each edge (doubled) */
     int nb[NSG];    /* number of blue edges in each S-subgraph */
-    int en;     /* number of blue S-cliques and red S-cliques */
+    int en;         /* number of blue S-cliques and red S-cliques */
 } rep_t;
 
 /* Global variables **********************************************************/
@@ -236,7 +236,7 @@ void init_replica(rep_t *p)
  * Put replica in a random state with equal numbers of red and blue edges on
  * average
  */
-void randomize(rep_t *p)
+void init_replica_random(rep_t *p)
 {
     int j;
 
@@ -255,32 +255,49 @@ void randomize(rep_t *p)
 }
 
 /*
- * Load replica configuration from a file
+ * Load replica configuration from a file. If the file specifies a graph with
+ * fewer than NV vertices, initialize the unspecified edges randomly with equal
+ * probabilities for red and blue.
  */
-void load_config(rep_t *p, char filename[])
+void init_replica_from_file(rep_t *p, char filename[])
 {
     FILE *fp;
-    int nv, sp, j;
+    int ned, sp, j;
 
+    init_replica(p);
     fp = fopen(filename, "r");
-    if (! fscanf(fp, "%d", &nv)) 
+
+    if (! fscanf(fp, "%d", &ned)) 
     {
         fprintf(stderr, "error while reading %s\n", filename);
         exit(1);
     }
 
-    j = NV - nv;
+    ned = ned*(ned-1)/2;
+    assert(ned < NED);
 
-    while (fscanf(fp, "%d", &sp) != EOF)
+    for (j = 0; j < NED - ned; j++)
     {
-        if (sp == -1)
+        if (URAND() < 0.5)
         {
             p->sp[j] = -1;
             p->en += p->h2[j];
             update_fields(j, p->sp, p->nb, p->h2);
         }
+    }
+
+    while (fscanf(fp, "%d", &sp) != EOF && j < NED)
+    {
+        if (sp == 0)
+        {
+            p->sp[j] = -1;
+            p->en += p->h2[j];
+            update_fields(j, p->sp, p->nb, p->h2);
+        }
+
         j++;
     }
+
     fclose(fp);
 }
 
@@ -340,32 +357,10 @@ void save_graph(int sp[NED], char filename[])
 
     fp = fopen(filename, "w");
     fprintf(fp, "%d\n", NV);
-    fprintf(fp, "%d\n", S);
-    fprintf(fp, "%d\n", S);
     
     for (i = 0; i < NED; i++)
         fprintf(fp, "%d\n", (sp[i] == 1) ? 1 : 0);
 
-    fclose(fp);
-}
-
-void save_state(char filename[])
-{
-    FILE *fp;
-
-    fp = fopen(filename, "w");
-    fwrite(ri, sizeof(int), nT, fp);
-    fwrite(reps, sizeof(rep_t), nT, fp);
-    fclose(fp);
-}
-
-void load_state(char filename[])
-{
-    FILE *fp;
-
-    fp = fopen(filename, "r");
-    assert(fread(ri, sizeof(int), nT, fp) == nT);
-    assert(fread(reps, sizeof(rep_t), nT, fp) == nT);
     fclose(fp);
 }
 
@@ -415,10 +410,12 @@ void run()
 
         if (nsweeps % WRITE_INTERVAL == 0)
         {
-            sprintf(filename, "%d-%d-%d_%d.bin",
-                    S, S, NV, rseed);
-            save_state(filename);
-            printf("state saved to %s\n", filename);
+            for (iT = 0; iT < nT; iT++)
+            {
+                sprintf(filename, "%d-%d-%d_%d.graph.%2d",
+                       S, S, NV, rseed, iT);
+                save_graph(reps[ri[iT]].sp, filename);
+            }
         }
 
         for (iT = 0; iT < nT; iT++)
@@ -445,7 +442,7 @@ int main(int argc, char *argv[])
     double t;
     int iT;
 
-    if (argc != 3 && argc != 4)
+    if (argc < 3)
     {
         fprintf(stderr, "Usage: %s input_file seed [saved state]\n", argv[0]);
         exit(EXIT_FAILURE);
@@ -464,34 +461,22 @@ int main(int argc, char *argv[])
         mbeta[nT] = -1./t;
         nT++;
     }
+
     assert(nT > 1);
     init_tabs();
 
     if (argc == nT + 3) /* initial configuration specified for each replica */
-    {
         for (iT = 0; iT < nT; iT++)
-        {
-            init_replica(&reps[iT]);
-            randomize(&reps[iT]);
-            load_config(&reps[iT], argv[iT+3]);
-        }
-    }
+            init_replica_from_file(&reps[iT], argv[iT+3]);
     else if (argc == 4) /* one configuration specified for all replicas */
     {
-        init_replica(&reps[0]);
-        randomize(&reps[0]);
-        load_config(&reps[0], argv[3]);
+        init_replica_from_file(&reps[0], argv[3]);
         for (iT = 0; iT < nT; iT++)
             reps[iT] = reps[0];
     }
     else    /* no configurations specified, init replicas in random state */
-    {
         for (iT = 0; iT < nT; iT++)
-        {
-            init_replica(&reps[iT]);
-            randomize(&reps[iT]);
-        }
-    }
+            init_replica_random(&reps[iT]);
 
     for (iT = 0; iT < nT; iT++)
     {
