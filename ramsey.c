@@ -371,7 +371,7 @@ int main(int argc, char *argv[])
     if (argc != 5 && argc != 6)
     {
         fprintf(stderr, "Usage: %s T_file max_sweeps write_interval"
-               "seed [saved state]\n", argv[0]);
+               " seed [saved state]\n", argv[0]);
         exit(EXIT_FAILURE);
     }
 
@@ -402,5 +402,5 @@ int main(int argc, char *argv[])
     
     free_subgraph_table();
 
-    return EXIT_SUCCESS;
+    return (min == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }

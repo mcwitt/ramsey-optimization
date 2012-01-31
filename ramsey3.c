@@ -57,9 +57,7 @@ int ri[MAX_NT];     /* replica indices in order of increasing temperature */
 
 int nsweeps;        /* number of sweeps */
 int min;            /* lowest energy found */
-
 int max_sweeps;     /* number of sweeps to do before giving up */
-int write_interval; /* number of sweeps between file writes */
 
 int nT;                 /* number of PT copies */
 int nswaps[MAX_NT];     /* number of swaps between each pair of temperatures */
@@ -408,6 +406,9 @@ void run()
     min = INT_MAX;
     nsweeps = 0;
     done = 0;
+#ifndef NOTIME
+    start = clock();
+#endif
 
     while (! done && nsweeps < max_sweeps)
     {
@@ -415,16 +416,6 @@ void run()
         nsweeps++;
 
         temper();
-
-        if (nsweeps % write_interval == 0)
-        {
-            for (iT = 0; iT < nT; iT++)
-            {
-                sprintf(filename, "%d-%d-%d_%d.graph.%2d",
-                       S, S, NV, rseed, iT);
-                save_graph(reps[ri[iT]].sp, filename);
-            }
-        }
 
         for (iT = 0; iT < nT; iT++)
         {
@@ -450,15 +441,15 @@ int main(int argc, char *argv[])
     double t;
     int iT;
 
-    if (argc < 5)
+    if (argc != 4 && argc != 5)
     {
-        fprintf(stderr, "Usage: %s T_file max_sweeps write_interval"
-               "seed [saved state]\n", argv[0]);
+        fprintf(stderr, "Usage: %s T_file max_sweeps"
+               " seed [initial state]\n", argv[0]);
         exit(EXIT_FAILURE);
     }
 
     /* init random number generator */
-    rseed = atoi(argv[4]);
+    rseed = atoi(argv[3]);
     dsfmt_init_gen_rand(&rstate, rseed);
 
     /* read temperatures from input file */
@@ -470,24 +461,19 @@ int main(int argc, char *argv[])
         mbeta[nT] = -1./t;
         nT++;
     }
-
     assert(nT > 1);
 
     max_sweeps = atoi(argv[2]);
-    write_interval = atoi(argv[3]);
 
     init_tabs();
 
-    if (argc == nT + 5) /* initial configuration specified for each replica */
-        for (iT = 0; iT < nT; iT++)
-            init_replica_from_file(&reps[iT], argv[iT+5]);
-    else if (argc == 6) /* one configuration specified for all replicas */
+    if (argc == 5) /* initial configuration specified */
     {
-        init_replica_from_file(&reps[0], argv[5]);
+        init_replica_from_file(&reps[0], argv[4]);
         for (iT = 0; iT < nT; iT++)
             reps[iT] = reps[0];
     }
-    else    /* no configurations specified, init replicas in random state */
+    else
         for (iT = 0; iT < nT; iT++)
             init_replica_random(&reps[iT]);
 
@@ -501,5 +487,5 @@ int main(int argc, char *argv[])
 
     free_tabs();
 
-    return EXIT_SUCCESS;
+    return (min == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }

@@ -20,16 +20,16 @@ ramsey4: ramsey4.c dSFMT.o
 	$(CC) -DR=$R -DNED=$(NED) -DNSGR=$(NSGR) -DNSGS=$(NSGS) -DNSGFER=$(NSGFER) -DNSGFES=$(NSGFES) -o $@_$R-$S-$(NV).out $^ $(CFLAGS)
 
 test:
-	python compile.py  		5 	40
-	python compile2.py		5 5 	40
-	python compile3.py		5 	40
-	python compile4.py		5 5	40
-	time ./ramsey_5-5-40.out 	temps.txt 50 51 123 > out1.tmp
-	time ./ramsey2_5-5-40.out	temps.txt 50 51 123 > out2.tmp
-	time ./ramsey3_5-5-40.out	temps.txt 50 51 123 > out3.tmp
-	time ./ramsey4_5-5-40.out	temps.txt 50 51 123 > out4.tmp
+	python compile.py  		5 	35
+	python compile2.py		5 5	35
+	python compile3.py		5 	35
+	python compile4.py		5 5	35
+	time ./ramsey_5-5-35.out 	temps.txt 100 101 123 > out1.tmp
+	time ./ramsey2_5-5-35.out	temps.txt 100 101 123 > out2.tmp
+	time ./ramsey3_5-5-35.out	temps.txt 100 123 > out3.tmp
+	time ./ramsey4_5-5-35.out	temps.txt 100 123 > out4.tmp
 	diff out1.tmp out2.tmp
 	diff out1.tmp out3.tmp
 	diff out1.tmp out4.tmp
-	$(RM) ramsey*_5-5-40.out *.tmp
+	$(RM) ramsey*_5-5-35.out *.tmp
 	
