@@ -1,5 +1,5 @@
 /*
- * File: ramsey3.c
+ * File: ramsey4.c
  *
  * Author: Matt Wittmann <mwittman@ucsc.edu>
  *
@@ -9,14 +9,17 @@
  * s-independent sets. If for a given input (r, s, N_v) we find a zero-energy
  * state, this implies that R(r, s) > N_v.
  *
- * To compile, run python compile3.py.
+ * To compile, run python compile4.py.
  *
- * Undefined constants (computed by compile3.py)
+ * Undefined constants (computed by compile4.py)
  *      NV      : number of vertices
- *      S       : clique size
+ *      R       : red clique size
+ *      S       : blue clique size
  *      NED     : number of edges (=NV(NV-1)/2)
- *      NSG     : number of subgraphs with S vertices (=binomial(NV, S))
- *      NSGFE   : number of subgraphs with S vertices including a given edge
+ *      NSGR    : number of subgraphs with R vertices (=binomial(NV, S))
+ *      NSGS    : number of subgraphs with S vertices (=binomial(NV, S))
+ *      NSGFER  : number of subgraphs with R vertices including a given edge
+ *      NSGFES  : number of subgraphs with S vertices including a given edge
  *                  (=binomial(NV-2, S-2))
  */
 
@@ -36,21 +39,27 @@
 typedef struct
 {
     int sp[NED];
-    int h2[NED];    /* local field at each edge (doubled) */
-    int nb[NSG];    /* number of blue edges in each S-subgraph */
-    int en;         /* number of blue S-cliques and red S-cliques */
+    int h2[NED];
+    int nbr[NSGR];  /* number of blue edges in each R-subgraph */
+    int nbs[NSGS];  /* number of blue edges in each S-subgraph */
+    int en;         /* number of blue S-cliques and red R-cliques */
 } rep_t;
 
 /* Global variables **********************************************************/
 
-int neds    = S*(S-1)/2;        /* number of edges in an S-subgraph */
-int nedsm1  = S*(S-1)/2 - 1;
-int nedsm2  = S*(S-1)/2 - 2;
+int nedr = R*(R-1)/2;       /* number of edges in an R-subgraph */
+int neds = S*(S-1)/2;       /* number of edges in an S-subgraph */
+int nedsm1 = S*(S-1)/2 - 1; /* neds minus one */
+int nedsm2 = S*(S-1)/2 - 2;
 
-/* sub[ei] lists the complete S-subgraphs that include edge ei */
-/* edg[si] lists the edges of subgraph si */
-int *sub[NED];
-int *edg[NSG];
+/* subs[ei] (subr[ei]) lists the NSGFES (NSGFER) complete S-subgraphs
+ * (R-subgraphs) that include edge ei */
+int *subr[NED];
+int *subs[NED];
+ 
+/* edgs[si] (edgr[si]) lists the edges of S-subgraph (R-subgraph) si */
+int *edgr[NSGR];
+int *edgs[NSGS];
 
 rep_t reps[MAX_NT]; /* storage for parallel tempering (PT) replicas */
 int ri[MAX_NT];     /* replica indices in order of increasing temperature */
@@ -71,22 +80,22 @@ uint32_t rseed; /* seed used to initialize RNG */
 clock_t start;  /* start time */
 #endif
 
-void init_tabs()
+void init_tabs(int *sub[], int *edg[], int t, int nsgfe, int nedrs)
 {
     int ps[NED];    /* current positions in subgraph arrays */
     int pe;         /* current position in edge array */
-    int c[S+2];     /* array of vertices of the current subgraph */
+    int c[t+2];     /* array of vertices of the current subgraph */
     int ei, si;     /* edge index, subgraph index */
     int j, k;
 
     for (j = 0; j < NED; j++)
     {
-        sub[j] = (int*) malloc(NSGFE * sizeof(int));
+        sub[j] = (int*) malloc(nsgfe * sizeof(int));
         ps[j] = 0;
     }
 
     /* 
-     * iterate over all subgraphs with S vertices
+     * iterate over all subgraphs with t vertices
      */
 
     /*
@@ -97,22 +106,22 @@ void init_tabs()
 
     /* INITIALIZE */
     si = 0;
-    c[S] = NV;
-    c[S+1] = 0;
-    for (j = 0; j < S; j++) c[j] = j;
+    c[t] = NV;
+    c[t+1] = 0;
+    for (j = 0; j < t; j++) c[j] = j;
 
     while (1)
     {
         /*
-         * VISIT combination c_1 c_2 ... c_S
-         * (algorithm guarantees that c_1 < c_2 < ... < c_S)
+         * VISIT combination c_1 c_2 ... c_t
+         * (algorithm guarantees that c_1 < c_2 < ... < c_t)
          */
 
-        edg[si] = (int*) malloc(neds * sizeof(int));
+        edg[si] = (int*) malloc(nedrs * sizeof(int));
         pe = 0;
 
         /* iterate over edges in this subgraph */
-        for (k = 0; k < S; k++)
+        for (k = 0; k < t; k++)
         {
             for (j = 0; j < k; j++)
             {
@@ -135,84 +144,104 @@ void init_tabs()
         while (c[j] + 1 == c[j+1]) { c[j] = j; j++; }
 
         /* DONE? */
-        if (j == S) break;
+        if (j == t) break;
 
         c[j]++;
     }
 }
 
-void free_tabs()
+void free_tabs(int *sub[], int *edg[], int nsg)
 {
     int i;
 
     for (i = 0; i < NED; i++)
         free(sub[i]);
-    for (i = 0; i < NSG; i++)
+    for (i = 0; i < nsg; i++)
         free(edg[i]);
 }
 
-void update_fields(int ei, int sp[], int nb[], int h2[])
+void update_fields(int ei, int sp[], int nbr[], int nbs[], int h2[])
 {
     int si, j, ej, nbf;
 
     if (sp[ei] == 1)
     {
-        for (si = 0; si < NSGFE; si++)
+        /* iterate over S-subgraphs including edge ei */
+        for (si = 0; si < NSGFES; si++)
         {
-            nbf = nb[sub[ei][si]] += 1;
-            if (nbf == neds || nbf == 1)
+            nbf = nbs[subs[ei][si]] += 1;
+
+            if (nbf == neds)        /* flip created a blue clique */
             {
-                /* completed a blue clique or destroyed a red clique */
                 h2[ei] += 1;
-                for (j = 0; j < neds; j++)
-                    h2[edg[sub[ei][si]][j]] -= 1;
+                for (j = 0; j < neds; j++) h2[edgs[subs[ei][si]][j]] -= 1;
             }
             else if (nbf == nedsm1)
             {
-                /* completed blue clique except for one red edge--
-                 * update field at red edge */
+                /* flip created an incomplete blue clique (one edge short) */
                 for (j = 0; j < neds; j++)
                 {
-                    ej = edg[sub[ei][si]][j];
+                    ej = edgs[subs[ei][si]][j];
                     if (sp[ej] == -1) { h2[ej] -= 1; break; }
                 }
             }
-            else if (nbf == 2)
+        }
+
+        /* iterate over R-subgraphs including edge ei */
+        for (si = 0; si < NSGFER; si++)
+        {
+            nbf = nbr[subr[ei][si]] += 1;
+
+            if (nbf == 1)       /* flip destroyed a red clique */
             {
-                /* destroyed an almost-complete red clique--
-                 * update field at the preexisting blue edge */
-                for (j = 0; j < neds; j++)
+                h2[ei] += 1;
+                for (j = 0; j < nedr; j++) h2[edgr[subr[ei][si]][j]] -= 1;
+            }
+            else if (nbf == 2)   /* flip destroyed an incomplete red clique */
+            {
+                for (j = 0; j < nedr; j++)
                 {
-                    ej = edg[sub[ei][si]][j];
+                    ej = edgr[subr[ei][si]][j];
                     if (sp[ej] == 1 && ej != ei) { h2[ej] -= 1; break; }
                 }
             }
         }
     }
-    else    /* analagous procedure if the new edge is red... */
+    else
     {
-        for (si = 0; si < NSGFE; si++)
+        for (si = 0; si < NSGFER; si++)
         {
-            nbf = nb[sub[ei][si]] -= 1;
-            if (nbf == 0 || nbf == nedsm1)
+            nbf = nbr[subr[ei][si]] -= 1;
+
+            if (nbf == 0)       /* created a red clique */
             {
                 h2[ei] -= 1;
-                for (j = 0; j < neds; j++)
-                    h2[edg[sub[ei][si]][j]] += 1;
+                for (j = 0; j < nedr; j++) h2[edgr[subr[ei][si]][j]] += 1;
             }
-            else if (nbf == 1)
+            else if (nbf == 1)  /* created an incomplete red clique */
             {
-                for (j = 0; j < neds; j++)
+                for (j = 0; j < nedr; j++)
                 {
-                    ej = edg[sub[ei][si]][j];
+                    ej = edgr[subr[ei][si]][j];
                     if (sp[ej] == 1) { h2[ej] += 1; break; }
                 }
             }
-            else if (nbf == nedsm2)
+        }
+
+        for (si = 0; si < NSGFES; si++)
+        {
+            nbf = nbs[subs[ei][si]] -= 1;
+
+            if (nbf == nedsm1)      /* destroyed a blue clique */
+            {
+                h2[ei] -= 1;
+                for (j = 0; j < neds; j++) h2[edgs[subs[ei][si]][j]] += 1;
+            }
+            else if (nbf == nedsm2) /* destroyed an incomplete blue clique */
             {
                 for (j = 0; j < neds; j++)
                 {
-                    ej = edg[sub[ei][si]][j];
+                    ej = edgs[subs[ei][si]][j];
                     if (sp[ej] == -1 && ej != ei) { h2[ej] += 1; break; }
                 }
             }
@@ -229,12 +258,14 @@ void init_replica(rep_t *p)
 {
     int j;
 
-    p->en = NSG;
-    for (j = 0; j < NSG; j++) p->nb[j] = neds;
+    p->en = NSGS;
+    for (j = 0; j < NSGR; j++) p->nbr[j] = nedr;
+    for (j = 0; j < NSGS; j++) p->nbs[j] = neds;
+
     for (j = 0; j < NED; j++)
     {
         p->sp[j] = 1;
-        p->h2[j] = -NSGFE;
+        p->h2[j] = -NSGFES;
     }
 }
 
@@ -255,7 +286,7 @@ void init_replica_random(rep_t *p)
         {
             p->sp[j] = -1;
             p->en += p->h2[j];
-            update_fields(j, p->sp, p->nb, p->h2);
+            update_fields(j, p->sp, p->nbr, p->nbs, p->h2);
         }
     }
 }
@@ -288,7 +319,7 @@ void init_replica_from_file(rep_t *p, char filename[])
         {
             p->sp[j] = -1;
             p->en += p->h2[j];
-            update_fields(j, p->sp, p->nb, p->h2);
+            update_fields(j, p->sp, p->nbr, p->nbs, p->h2);
         }
     }
 
@@ -298,7 +329,7 @@ void init_replica_from_file(rep_t *p, char filename[])
         {
             p->sp[j] = -1;
             p->en += p->h2[j];
-            update_fields(j, p->sp, p->nb, p->h2);
+            update_fields(j, p->sp, p->nbr, p->nbs, p->h2);
         }
 
         j++;
@@ -326,7 +357,7 @@ void sweep()
             {
                 p->sp[j] *= -1;
                 p->en += delta;
-                update_fields(j, p->sp, p->nb, p->h2);
+                update_fields(j, p->sp, p->nbr, p->nbs, p->h2);
             }
         }
 #ifdef DEBUG
@@ -424,7 +455,7 @@ void run()
             {
                 min = p->en;
                 print_status();
-                sprintf(filename, "%d-%d-%d_%d.graph", S, S, NV, rseed);
+                sprintf(filename, "%d-%d-%d_%d.graph", R, S, NV, rseed);
                 save_graph(p->sp, filename);
 
                 if (p->en == 0) { done = 1; break; }
@@ -465,13 +496,14 @@ int main(int argc, char *argv[])
 
     max_sweeps = atoi(argv[2]);
 
-    init_tabs();
+    init_tabs(subr, edgr, R, NSGFER, nedr);
+    init_tabs(subs, edgs, S, NSGFES, neds);
 
     if (argc == 5) /* initial configuration specified */
     {
-        init_replica_from_file(&reps[0], argv[4]);
+        init_replica_from_file(reps, argv[4]);
         for (iT = 0; iT < nT; iT++)
-            reps[iT] = reps[0];
+            reps[iT] = *reps;
     }
     else
         for (iT = 0; iT < nT; iT++)
@@ -485,7 +517,8 @@ int main(int argc, char *argv[])
 
     run();
 
-    free_tabs();
+    free_tabs(subr, edgr, NSGR);
+    free_tabs(subs, edgs, NSGS);
 
     return (min == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }

@@ -1,75 +1,75 @@
-#ifdef R
-#if (R > S)
-#define M R
-#else
-#define M S
-#endif
-#else
-#define R S
-#endif
+#include <stdio.h>
+#include <stdlib.h>
 
-int debug_energy(int sp[NED])
+int clique_count(int sp[], int nv, int color, int n)
 {
-    int c[R+S+2];
-    int j, k;
-    int edgesum, energy;
-    int nedr, neds;
+    int c[n+2]; /* uses C99 auto dynamic arrays */
+    int nedc, count, j, k, sum;
 
-    nedr = R*(R-1)/2;
-    neds = S*(S-1)/2;
-    energy = 0;
+    nedc = n*(n-1)/2;
+    count = 0;
 
     /* INITIALIZE */
-    c[R] = NV;
-    c[R+1] = 0;
-    for (j = 0; j < R; j++) c[j] = j;
+    c[n] = nv;
+    c[n+1] = 0;
+    for (j = 0; j < n; j++) c[j] = j;
 
     while (1)
     {
-        edgesum = 0;
+        sum = 0;
 
         /* iterate over edges in this subgraph */
-        for (k = 0; k < R; k++)
+        for (k = 0; k < n; k++)
             for (j = 0; j < k; j++)
-                edgesum += sp[c[k]*(c[k]-1)/2 + c[j]];
+                sum += sp[c[k]*(c[k]-1)/2 + c[j]];
 
-        if (edgesum == -nedr) energy++;
+        if (sum == color*nedc) count++;
 
         /* FIND j */
         j = 0;
         while (c[j] + 1 == c[j+1]) { c[j] = j; j++; }
 
         /* DONE? */
-        if (j == R) break;
+        if (j == n) break;
 
         c[j]++;
     }
 
-    /* INITIALIZE */
-    c[S] = NV;
-    c[S+1] = 0;
-    for (j = 0; j < S; j++) c[j] = j;
+    return count;
+}
 
-    while (1)
+int energy(int sp[], int nv, int r, int s)
+{
+    return clique_count(sp, nv, -1, r) + clique_count(sp, nv, 1, s);
+}
+
+int main(int argc, char *argv[])
+{
+    FILE *fp;
+    int *sp;
+    int nv, r, s, ned, i = 0;
+
+    if (argc != 4)
     {
-        edgesum = 0;
-
-        /* iterate over edges in this subgraph */
-        for (k = 0; k < S; k++)
-            for (j = 0; j < k; j++)
-                edgesum += sp[c[k]*(c[k]-1)/2 + c[j]];
-
-        if (edgesum == neds) energy++;
-
-        /* FIND j */
-        j = 0;
-        while (c[j] + 1 == c[j+1]) { c[j] = j; j++; }
-
-        /* DONE? */
-        if (j == S) break;
-
-        c[j]++;
+        fprintf(stderr, "Usage: %s graph_file r s\n", argv[0]);
+        exit(EXIT_FAILURE);
     }
 
-    return energy;
+    fp = fopen(argv[1], "r");
+    r = atoi(argv[2]);
+    s = atoi(argv[3]);
+
+    fscanf(fp, "%d", &nv);
+    ned = nv*(nv-1)/2;
+    sp = (int*) malloc(ned * sizeof(int));
+
+    while (fscanf(fp, "%d", &sp[i]) && i < ned)
+    {
+        if (sp[i] == 0) sp[i] = -1;
+        i++;
+    }
+
+    printf("%d\n", energy(sp, nv, r, s));
+
+    return EXIT_SUCCESS;
 }
