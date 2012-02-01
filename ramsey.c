@@ -52,49 +52,36 @@ void R_init_replica(rep_t *p)
 
 void R_init_replica_random(rep_t *p)
 {
-    int j;
-
     R_init_replica(p);
-
-    /* randomize spins, updating fields with each flip */
-    for (j = 0; j < NED; j++)
-    {
-        if (R_RAND() < 0.5)
-        {
-            p->sp[j] = -1;
-            p->en += p->h2[j];
-            R_update_fields(j, p->sp, p->nbr, p->nbs, p->h2);
-        }
-    }
+    R_randomize(p, NED);
 }
 
-void R_init_replica_from_file(rep_t *p, char filename[])
+int R_init_replica_from_file(rep_t *p, char filename[])
 {
     FILE *fp;
-    int ned, sp, j;
+    int ned, sp, j, imask;
 
     R_init_replica(p);
-    fp = fopen(filename, "r");
 
-    if (! fscanf(fp, "%d", &ned)) 
+    if (! (fp = fopen(filename, "r")))
     {
-        fprintf(stderr, "error while reading %s\n", filename);
-        exit(1);
+        fprintf(stderr, "Error opening file: %s\n", filename);
+        exit(EXIT_FAILURE);
+    }
+
+    if (! fscanf(fp, "%d", &ned))
+    {
+        fprintf(stderr, "Error while reading file: %s\n", filename);
+        exit(EXIT_FAILURE);
     }
 
     ned = ned*(ned-1)/2;
-    assert(ned < NED);
+    imask = NED - ned;      /* number of spins unspecified by input */
+    assert(imask >= 0);
+    R_randomize(p, imask);  /* randomize the first imask spins */
 
-    for (j = 0; j < NED - ned; j++)
-    {
-        if (R_RAND() < 0.5)
-        {
-            p->sp[j] = -1;
-            p->en += p->h2[j];
-            R_update_fields(j, p->sp, p->nbr, p->nbs, p->h2);
-        }
-    }
-
+    /* read remaining spins from input */
+    j = imask;
     while (fscanf(fp, "%d", &sp) != EOF && j < NED)
     {
         if (sp == 0)
@@ -108,6 +95,23 @@ void R_init_replica_from_file(rep_t *p, char filename[])
     }
 
     fclose(fp);
+
+    return imask;
+}
+
+void R_randomize(rep_t *p, int imask)
+{
+    int j;
+
+    for (j = 0; j < imask; j++)
+    {
+        if (R_RAND() < 0.5)
+        {
+            p->en += p->sp[j]*p->h2[j];
+            p->sp[j] *= -1;
+            R_update_fields(j, p->sp, p->nbr, p->nbs, p->h2);
+        }
+    }
 }
 
 void R_update_fields(int ei, int sp[], int nbr[], int nbs[], int h2[])

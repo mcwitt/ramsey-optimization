@@ -1,5 +1,5 @@
 /*
- * File: ramsey4.c
+ * File: pt.c
  *
  * Author: Matt Wittmann <mwittman@ucsc.edu>
  *
@@ -9,10 +9,11 @@
  * s-independent sets. If for a given input (r, s, N_v) we find a zero-energy
  * state, this implies that R(r, s) > N_v.
  *
- * To compile, run python compile4.py.
+ * To compile, run python compile.py.
  */
 
-#define MAX_NT 32   /* maximum number of parallel tempering replicas */
+#define MAX_NT      32  /* maximum number of parallel tempering replicas */
+#define WRITE_MAX   10  /* only save graph when energy is below this value */
 
 #include <assert.h>
 #include <limits.h>
@@ -27,7 +28,7 @@ rep_t reps[MAX_NT]; /* storage for parallel tempering (PT) replicas */
 int ri[MAX_NT];     /* replica indices in order of increasing temperature */
 
 int nsweeps;        /* number of sweeps */
-int min;            /* lowest energy found */
+int emin;            /* lowest energy found */
 int max_sweeps;     /* number of sweeps to do before giving up */
 
 int nT;                 /* number of PT copies */
@@ -41,12 +42,7 @@ uint32_t seed; /* seed used to initialize RNG */
 clock_t start;  /* start time */
 #endif
 
-/*
- * Load replica configuration from a file. If the file specifies a graph with
- * fewer than NV vertices, initialize the unspecified edges randomly with equal
- * probabilities for red and blue.
- */
-
+/* Update each spin once */
 void sweep()
 {
     rep_t *p;
@@ -69,9 +65,10 @@ void sweep()
                 R_update_fields(j, p->sp, p->nbr, p->nbs, p->h2);
             }
         }
-    }   /* end of loop over temperatures */
+    }
 }
 
+/* Attempt parallel tempering swaps */
 void temper()
 {
     double logar;
@@ -101,7 +98,7 @@ void print_status()
 #endif
 
     printf("\n");
-    printf("min. energy     : %d\n", min);
+    printf("min. energy     : %d\n", emin);
     printf("# of sweeps     : %d\n", nsweeps);
 #ifndef NOTIME
     trun = (clock() - start)/CLOCKS_PER_SEC;
@@ -120,62 +117,36 @@ void print_status()
     fflush(stdout);
 }
 
-void run()
+int main(int argc, char *argv[])
 {
+    FILE *infile;
     rep_t *p;
     char filename[256];
-    int iT, done;
+    double t;
+    int iT;
 
-    min = INT_MAX;
-    nsweeps = 0;
-    done = 0;
 #ifndef NOTIME
     start = clock();
 #endif
 
-    while (! done && nsweeps < max_sweeps)
-    {
-        sweep();
-        nsweeps++;
-
-        temper();
-
-        for (iT = 0; iT < nT; iT++)
-        {
-            p = &reps[ri[iT]];
-            if (p->en < min)
-            {
-                min = p->en;
-                print_status();
-                sprintf(filename, "%d-%d-%d_%d.graph", R, S, NV, seed);
-                R_save_graph(p->sp, filename);
-
-                if (p->en == 0) { done = 1; break; }
-            }
-        }
-    }
-
-    print_status();
-}
-
-int main(int argc, char *argv[])
-{
-    FILE *infile;
-    double t;
-    int iT;
-
     if (argc != 4 && argc != 5)
     {
         fprintf(stderr, "Usage: %s T_file max_sweeps"
-               " seed [initial state]\n", argv[0]);
+               " seed [initial config]\n", argv[0]);
         exit(EXIT_FAILURE);
     }
 
+    max_sweeps = atoi(argv[2]);
     seed = atoi(argv[3]);
 
-    /* read temperatures from input file */
+    /* READ TEMPERATURES */
+    if (! (infile = fopen(argv[1], "r")))
+    {
+        fprintf(stderr, "Error opening file: %s\n", argv[1]);
+        exit(EXIT_FAILURE);
+    }
+
     nT = 0;
-    infile = fopen(argv[1], "r");
     while (fscanf(infile, "%lf", &t) != EOF && nT < MAX_NT)
     {
         T[nT] = t;
@@ -184,15 +155,16 @@ int main(int argc, char *argv[])
     }
     assert(nT > 1);
 
-    max_sweeps = atoi(argv[2]);
 
+    /* INITIALIZE SIMULATION */
     R_init(seed);
 
+    /* INITIALIZE REPLICAS */
     if (argc == 5) /* initial configuration specified */
     {
         R_init_replica_from_file(reps, argv[4]);
         for (iT = 0; iT < nT; iT++)
-            reps[iT] = *reps;
+            reps[iT] = reps[0];
     }
     else
         for (iT = 0; iT < nT; iT++)
@@ -204,8 +176,38 @@ int main(int argc, char *argv[])
         nswaps[iT] = 0;
     }
 
-    run();
+    /* BEGIN SIMULATION */
+    sprintf(filename, "%d-%d-%d_%d.graph", R, S, NV, seed);
+    emin = INT_MAX;
+    nsweeps = 0;
+
+    while (nsweeps < max_sweeps)
+    {
+        sweep();
+        nsweeps++;
+
+        temper();
+
+        for (iT = 0; iT < nT; iT++)
+        {
+            p = &reps[ri[iT]];
+            if (p->en < emin)
+            {
+                emin = p->en;
+                print_status();
+                if (emin < WRITE_MAX) R_save_graph(p->sp, filename);
+
+                if (emin == 0)
+                {
+                    R_finalize();
+                    return EXIT_SUCCESS;
+                }
+            }
+        }
+    }
+
+    print_status();
     R_finalize();
 
-    return (min == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
+    return EXIT_FAILURE;
 }

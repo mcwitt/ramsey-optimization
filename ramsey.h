@@ -48,9 +48,13 @@ void R_init_replica_random(rep_t *p);
 /*
  * Initialize replica using configuration from a graph file. If the file
  * specifies a graph with fewer than NV vertices, initialize the unspecified
- * edges randomly with equal probabilities for red and blue.
+ * edges randomly with equal probabilities for red and blue. Returns the number
+ * of edges that were initialized with random values.
  */
-void R_init_replica_from_file(rep_t *p, char filename[]);
+int R_init_replica_from_file(rep_t *p, char filename[]);
+
+/* Randomizes spins with indices less than imask */
+void R_randomize(rep_t *p, int imask);
 
 /*
  * Update local fields after a spin flip (called AFTER spin assigned new value)
