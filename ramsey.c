@@ -116,13 +116,11 @@ void R_randomize(rep_t *p, int imask)
 
 void R_update_fields(rep_t *p, int ei)
 {
-    int *sp, *nbr, *nbs, *h2;
     int si, j, ej, nbf;
-
-    sp = p->sp;
-    h2 = p->h2;
-    nbr = p->nbr;
-    nbs = p->nbs;
+    int *sp = p->sp;
+    int *h2 = p->h2;
+    int *nbr = p->nbr;
+    int *nbs = p->nbs;
 
     if (sp[ei] == 1)
     {

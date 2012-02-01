@@ -503,7 +503,7 @@ int main(int argc, char *argv[])
     {
         init_replica_from_file(reps, argv[4]);
         for (iT = 0; iT < nT; iT++)
-            reps[iT] = *reps;
+            reps[iT] = reps[0];
     }
     else
         for (iT = 0; iT < nT; iT++)
