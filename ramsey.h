@@ -58,10 +58,10 @@ void R_randomize(rep_t *p, int imask);
 
 /*
  * Update local fields after a spin flip (called AFTER spin assigned new value)
- *      ei                  : index of flipped spin
- *      sp, nbr, nbs, h2    : values for the replica containing flipped spin
+ *      p   : pointer to affected replica
+ *      ei  : index of flipped spin
  */
-void R_update_fields(int ei, int sp[], int nbr[], int nbs[], int h2[]);
+void R_update_fields(rep_t *p, int ei);
 
 /* Save graph to file */
 void R_save_graph(int sp[], char filename[]);

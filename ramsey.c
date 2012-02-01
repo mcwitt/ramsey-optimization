@@ -88,7 +88,7 @@ int R_init_replica_from_file(rep_t *p, char filename[])
         {
             p->sp[j] = -1;
             p->en += p->h2[j];
-            R_update_fields(j, p->sp, p->nbr, p->nbs, p->h2);
+            R_update_fields(p, j);
         }
 
         j++;
@@ -109,14 +109,20 @@ void R_randomize(rep_t *p, int imask)
         {
             p->en += p->sp[j]*p->h2[j];
             p->sp[j] *= -1;
-            R_update_fields(j, p->sp, p->nbr, p->nbs, p->h2);
+            R_update_fields(p, j);
         }
     }
 }
 
-void R_update_fields(int ei, int sp[], int nbr[], int nbs[], int h2[])
+void R_update_fields(rep_t *p, int ei)
 {
+    int *sp, *nbr, *nbs, *h2;
     int si, j, ej, nbf;
+
+    sp = p->sp;
+    h2 = p->h2;
+    nbr = p->nbr;
+    nbs = p->nbs;
 
     if (sp[ei] == 1)
     {

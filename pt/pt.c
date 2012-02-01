@@ -28,7 +28,7 @@ rep_t reps[MAX_NT]; /* storage for parallel tempering (PT) replicas */
 int ri[MAX_NT];     /* replica indices in order of increasing temperature */
 
 int nsweeps;        /* number of sweeps */
-int emin;            /* lowest energy found */
+int emin;           /* lowest energy found */
 int max_sweeps;     /* number of sweeps to do before giving up */
 
 int nT;                 /* number of PT copies */
@@ -62,7 +62,7 @@ void sweep()
             {
                 p->sp[j] *= -1;
                 p->en += delta;
-                R_update_fields(j, p->sp, p->nbr, p->nbs, p->h2);
+                R_update_fields(p, j);
             }
         }
     }
