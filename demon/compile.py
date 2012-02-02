@@ -16,7 +16,7 @@ nsgs = choose(nv, s)
 nsgfer = choose(nv-2, r-2)
 nsgfes = choose(nv-2, s-2)
 
-cmd = "make pt NV={} R={} S={} NED={} NSGR={} NSGS={} NSGFER={} NSGFES={}".format(
+cmd = "make NV={} R={} S={} NED={} NSGR={} NSGS={} NSGFER={} NSGFES={}".format(
             nv, r, s, ned, nsgr, nsgs, nsgfer, nsgfes
         ).split()
 

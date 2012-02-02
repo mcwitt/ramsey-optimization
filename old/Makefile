@@ -2,7 +2,7 @@ dsfmt_dir = $(HOME)/local/src/dSFMT-src-2.1
 dsfmt_flags = -I$(dsfmt_dir) -DDSFMT_MEXP=2203 -DHAVE_SSE2
 
 VPATH = $(dsfmt_dir)
-CFLAGS = -Wall -std=gnu99 -lm -O3 $(dsfmt_flags) -DNV=$(NV) -DS=$S -DNED=$(NED) -DNOTIME
+CFLAGS = -Wall -std=gnu99 -lm -O3 $(dsfmt_flags) -DNV=$(NV) -DS=$S -DNED=$(NED)
 OBJECTS = dSFMT.o
 
 .PHONY: ramsey ramsey2 ramsey3 ramsey4 test
