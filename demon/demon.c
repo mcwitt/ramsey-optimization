@@ -10,10 +10,12 @@
 
 #include <assert.h>
 #include <limits.h>
+#include <math.h>
 #include <stdio.h>
 #include "ramsey.h"
 
 #define WRITE_MAX 10  /* only save graph when energy is below this value */
+#define NRUN_MAX 100
 
 rep_t r;
 int emin;
@@ -21,14 +23,14 @@ int emin;
 int emax_demon_ini;
 int nsweep_ini;
 int nstage;
+int nrun;
 int itry, irun;
 uint32_t seed;
 
 void converge()
 {
-    int nsweep, emax_demon, e_demon, istage, isweep, delta, j;
-    int nflip_sweep, nflip;
-    int e_demon_av;
+    int nsweep, nflip, nflip_sweep, emax_demon, e_demon, e_demon_av, istage,
+        isweep, delta, j;
 
     nsweep = nsweep_ini;
     e_demon = emax_demon = emax_demon_ini;
@@ -36,9 +38,9 @@ void converge()
 
     for (istage = 0; istage < nstage; istage++)
     {
-        emax_demon = (int) (emax_demon * ( 1. - istage/(nstage-1.) ));
         nflip = 0;
         e_demon_av = 0;
+        emax_demon = (int) ceil(emax_demon * ( 1. - istage/(nstage-1.) ));
 
         for (isweep = 0; isweep < nsweep; isweep++)
         {
@@ -79,7 +81,8 @@ void converge()
 int main(int argc, char *argv[])
 {
     char filename[256];
-    int ntry_max, ntry;
+    int ntry[NRUN_MAX];
+    int ntry_max;
     int imask;
     int converged;
 
@@ -117,6 +120,11 @@ int main(int argc, char *argv[])
         imask = NED;
     }
 
+    /* init "decades" */
+    ntry[0] = 0; ntry[1] = 1; ntry[2] = 3;
+    nrun = 3;
+    while ((ntry[nrun] = 10*ntry[nrun-2]) <= ntry_max) nrun++;
+
     /* print header */
 #ifdef FULL_OUTPUT
     printf("%3s %6s %6s %12s %12s %6s %6s\n",
@@ -127,13 +135,11 @@ int main(int argc, char *argv[])
 
     /* BEGIN SIMULATION */
     converged = 0;
-    ntry = 1;
-    irun = 0;
     emin = INT_MAX;
 
-    while ((ntry <= ntry_max) && !converged)
+    for (irun = 1; irun <= nrun; irun++)
     {
-        for (itry = 0; itry < ntry; itry++)
+        for (itry = 0; itry < (ntry[irun] - ntry[irun-1]); itry++)
         {
             R_randomize(&r, imask);   /* randomize free spins */
             converge();
@@ -147,12 +153,10 @@ int main(int argc, char *argv[])
         }
 
 #ifndef FULL_OUTPUT
-        printf("%8d %8d\n", ntry, emin);
+        printf("%8d %8d\n", ntry[irun], emin);
         fflush(stdout);
 #endif
-
-        ntry *= 2;
-        irun++;
+        if (converged) break;
     }
 
     R_finalize();
