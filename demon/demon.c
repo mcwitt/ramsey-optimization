@@ -73,6 +73,7 @@ void converge()
                 (double) e_demon_av/(isweep+1),
                 (double) nflip/NED/(isweep+1),
                 (emin == INT_MAX) ? -1 : emin);
+        fflush(stdout);
 #endif
         if (! nflip_sweep) break;
     }
