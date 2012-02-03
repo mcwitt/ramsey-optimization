@@ -123,7 +123,9 @@ int main(int argc, char *argv[])
     /* init "decades" */
     ntry[0] = 0; ntry[1] = 1; ntry[2] = 3;
     nrun = 3;
-    while ((ntry[nrun] = 10*ntry[nrun-2]) <= ntry_max) nrun++;
+    while ( (nrun < NRUN_MAX) &&
+            ( (ntry[nrun] = 10*ntry[nrun-2]) <= ntry_max )
+          ) nrun++;
 
     /* print header */
 #ifdef FULL_OUTPUT
