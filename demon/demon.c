@@ -18,64 +18,37 @@
 #define NRUN_MAX 100
 
 rep_t r;
-int emin;
+int e_demon;
 
-int emax_demon_ini;
-int nsweep_ini;
-int nstage;
-int nrun;
-int itry, irun;
-uint32_t seed;
-
-void converge()
+void print_header()
 {
-    int nsweep, nflip, nflip_sweep, emax_demon, e_demon, e_demon_av, istage,
-        isweep, delta, j;
-
-    nsweep = nsweep_ini;
-    e_demon = emax_demon = emax_demon_ini;
-    nflip_sweep = 0;
-
-    for (istage = 0; istage < nstage; istage++)
-    {
-        nflip = 0;
-        e_demon_av = 0;
-        emax_demon = (int) ceil(emax_demon * ( 1. - istage/(nstage-1.) ));
-
-        for (isweep = 0; isweep < nsweep; isweep++)
-        {
-            nflip_sweep = 0;
-
-            for (j = 0; j < NED; j++)
-            {
-                delta = r.sp[j]*r.h2[j];
-
-                if (delta < e_demon)
-                {
-                    r.en += delta;
-                    e_demon -= delta;
-                    r.sp[j] *= -1;
-                    R_update_fields(&r, j);
-                    if (e_demon > emax_demon) e_demon = emax_demon;
-                    nflip_sweep++;
-                }
-            }
-
-            e_demon_av += e_demon;
-            if (! nflip_sweep) break;
-            nflip += nflip_sweep;
-        }
-
 #ifdef FULL_OUTPUT
-        /* print stats */
-        printf("%3d %6d %6d %12d %12.2f %6.2f %6d\n",
-                irun, itry, istage, emax_demon,
-                (double) e_demon_av/(isweep+1),
-                (double) nflip/NED/(isweep+1),
-                (emin == INT_MAX) ? -1 : emin);
-        fflush(stdout);
+    printf("%3s %8s %8s %8s %12s %12s %8s %12s %8s\n",
+            "run", "try", "stage", "nsweep", "emax_demon", "e_demon_av", "a.r.", "emin_stage", "emin");
+#else
+    printf("%8s %8s\n", "N_try", "E_min");
 #endif
-        if (! nflip_sweep) break;
+}
+
+void sweep(int emax_demon, int *nflip)
+{
+    int j, delta;
+
+    *nflip = 0;
+
+    for (j = 0; j < NED; j++)
+    {
+        delta = r.sp[j]*r.h2[j];
+
+        if (delta < e_demon)
+        {
+            r.en += delta;
+            e_demon -= delta;
+            r.sp[j] *= -1;
+            R_update_fields(&r, j);
+            if (e_demon > emax_demon) e_demon = emax_demon;
+            *nflip += 1;
+        }
     }
 }
 
@@ -83,9 +56,11 @@ int main(int argc, char *argv[])
 {
     char filename[256];
     int ntry[NRUN_MAX];
-    int ntry_max;
-    int imask;
-    int converged;
+    int nsweep_ini, emax_demon_ini, nstage, ntry_max;
+    int imask, irun, itry, istage, isweep;
+    int nrun, nsweep, nflip, nflip_sweep;
+    int emax_demon, e_demon_av, emin, emin_stage, converged;
+    uint32_t seed;
 
     if (argc != 6 && argc != 7)
     {
@@ -121,38 +96,65 @@ int main(int argc, char *argv[])
         imask = NED;
     }
 
-    /* init "decades" */
+    /* set up "decades" */
     ntry[0] = 0; ntry[1] = 1; ntry[2] = 3;
     nrun = 3;
     while ( (nrun < NRUN_MAX) &&
             ( (ntry[nrun] = 10*ntry[nrun-2]) <= ntry_max )
           ) nrun++;
 
-    /* print header */
-#ifdef FULL_OUTPUT
-    printf("%3s %6s %6s %12s %12s %6s %6s\n",
-            "run", "try", "stage", "emax_demon", "e_demon_av", "a.r.", "emin");
-#else
-    printf("%8s %8s\n", "N_try", "E_min");
-#endif
+    print_header();
 
     /* BEGIN SIMULATION */
     converged = 0;
     emin = INT_MAX;
 
-    for (irun = 1; irun <= nrun; irun++)
+    for (irun = 0; irun < nrun; irun++)
     {
-        for (itry = 0; itry < (ntry[irun] - ntry[irun-1]); itry++)
+        for (itry = 0; itry < (ntry[irun+1] - ntry[irun]); itry++)
         {
             R_randomize(&r, imask);   /* randomize free spins */
-            converge();
 
-            if (r.en < emin)
+            nsweep = nsweep_ini;
+            e_demon = emax_demon = emax_demon_ini;
+            nflip_sweep = 0;
+
+            for (istage = 0; istage < nstage; istage++)
             {
-                emin = r.en;
-                if (emin < WRITE_MAX) R_save_graph(r.sp, filename);
-                if (emin == 0) { converged = 1; break; }
+                nflip = 0;
+                e_demon_av = 0;
+                emin_stage = INT_MAX;
+                emax_demon = (int) ceil(emax_demon * ( 1. - istage/(nstage-1.) ));
+
+                for (isweep = 0; isweep < nsweep; isweep++)
+                {
+                    sweep(emax_demon, &nflip_sweep);
+                    e_demon_av += e_demon;
+                    if (! nflip_sweep) break;
+                    nflip += nflip_sweep;
+                    if (r.en < emin_stage) emin_stage = r.en;
+                }
+
+                if (emin_stage < emin)
+                {
+                    emin = emin_stage;
+                    if (emin < WRITE_MAX) R_save_graph(r.sp, filename);
+                    if (emin == 0) converged = 1;
+                }
+
+#ifdef FULL_OUTPUT
+                /* print stats */
+                printf("%3d %8d %8d %8d %12d %12.2f %8.2f %12d %8d\n",
+                        irun, itry, istage, nsweep, emax_demon,
+                        (double) e_demon_av/(isweep+1),
+                        (double) nflip/NED/(isweep+1),
+                        emin_stage, emin);
+                fflush(stdout);
+#endif
+                if (converged || (! nflip_sweep)) break;   /* reached a local minimum, try again */
             }
+
+            if (converged) break;
         }
 
 #ifndef FULL_OUTPUT
@@ -160,6 +162,7 @@ int main(int argc, char *argv[])
         fflush(stdout);
 #endif
         if (converged) break;
+        print_header();
     }
 
     R_finalize();
