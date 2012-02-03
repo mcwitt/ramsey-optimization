@@ -13,7 +13,7 @@
 #include <stdio.h>
 #include "ramsey.h"
 
-#define WRITE_MAX   10  /* only save graph when energy is below this value */
+#define WRITE_MAX 10  /* only save graph when energy is below this value */
 
 rep_t r;
 int emin;
@@ -36,7 +36,7 @@ void converge()
 
     for (istage = 0; istage < nstage; istage++)
     {
-        emax_demon = (int) emax_demon * ( 1. - istage/(nstage-1.) );
+        emax_demon = (int) (emax_demon * ( 1. - istage/(nstage-1.) ));
         nflip = 0;
         e_demon_av = 0;
 
@@ -59,16 +59,17 @@ void converge()
                 }
             }
 
-            nflip += nflip_sweep;
             e_demon_av += e_demon;
             if (! nflip_sweep) break;
+            nflip += nflip_sweep;
         }
 
 #ifdef FULL_OUTPUT
         /* print stats */
         printf("%3d %6d %6d %12d %12.2f %6.2f %6d\n",
                 irun, itry, istage, emax_demon,
-                (double) e_demon_av/nsweep, (double) nflip/(NED*nsweep),
+                (double) e_demon_av/(isweep+1),
+                (double) nflip/NED/(isweep+1),
                 (emin == INT_MAX) ? -1 : emin);
 #endif
         if (! nflip_sweep) break;
