@@ -78,7 +78,7 @@ int R_init_replica_from_file(rep_t *p, char filename[])
     ned = ned*(ned-1)/2;
     imask = NED - ned;      /* number of spins unspecified by input */
     assert(imask >= 0);
-    R_randomize(p, imask);  /* randomize the first imask spins */
+    R_randomize(p, imask);  /* randomize unspecified spins */
 
     /* read remaining spins from input */
     j = imask;
@@ -136,7 +136,7 @@ void R_update_fields(rep_t *p, int ei)
             }
             else if (nbf == nedsm1)
             {
-                /* flip created an incomplete blue clique (one edge short) */
+                /* flip created an incomplete blue clique (one red edge) */
                 for (j = 0; j < neds; j++)
                 {
                     ej = edgs[subs[ei][si]][j];

@@ -61,6 +61,9 @@ int main(int argc, char *argv[])
     int nrun, nsweep, nflip, nflip_sweep;
     int emax_demon, e_demon_av, emin, emin_stage, converged;
     uint32_t seed;
+#ifdef FULL_OUTPUT
+    int itry_total = 0;
+#endif
 
     if (argc != 6 && argc != 7)
     {
@@ -106,12 +109,17 @@ int main(int argc, char *argv[])
     /* BEGIN SIMULATION */
     converged = 0;
     emin = INT_MAX;
+#ifndef FULL_OUTPUT
+    print_header();
+#endif
 
     for (irun = 0; irun < nrun; irun++)
     {
         for (itry = 0; itry < (ntry[irun+1] - ntry[irun]); itry++)
         {
+#ifdef FULL_OUTPUT
             print_header();
+#endif
             R_randomize(&r, imask);   /* randomize free spins */
             nsweep = nsweep_ini;
             e_demon = emax_demon = emax_demon_ini;
@@ -143,7 +151,7 @@ int main(int argc, char *argv[])
 #ifdef FULL_OUTPUT
                 /* print stats */
                 printf("%3d %8d %8d %8d %12d %12.2f %8.5f %10.2f %12d %8d\n",
-                        irun, itry, istage, nsweep, emax_demon,
+                        irun, ++itry_total, istage, nsweep, emax_demon,
                         (double) e_demon_av/(isweep+1),
                         (double) nflip/NED/(isweep+1),
                         (double) nflip/NED,
@@ -160,7 +168,7 @@ int main(int argc, char *argv[])
         }
 
 #ifndef FULL_OUTPUT
-        printf("%8d %8d\n", ntry[irun], emin);
+        printf("%8d %8d\n", ntry[irun+1], emin);
         fflush(stdout);
 #endif
         if (converged) break;
