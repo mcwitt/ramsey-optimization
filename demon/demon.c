@@ -23,8 +23,8 @@ int e_demon;
 void print_header()
 {
 #ifdef FULL_OUTPUT
-    printf("%3s %8s %8s %8s %12s %12s %8s %12s %8s\n",
-            "run", "try", "stage", "nsweep", "emax_demon", "e_demon_av", "a.r.", "emin_stage", "emin");
+    printf("%3s %8s %8s %8s %12s %12s %8s %10s %12s %8s\n",
+            "run", "try", "stage", "nsweep", "emax_demon", "e_demon_av", "a.r.", "nflip/spin", "emin_stage", "emin");
 #else
     printf("%8s %8s\n", "N_try", "E_min");
 #endif
@@ -103,8 +103,6 @@ int main(int argc, char *argv[])
             ( (ntry[nrun] = 10*ntry[nrun-2]) <= ntry_max )
           ) nrun++;
 
-    print_header();
-
     /* BEGIN SIMULATION */
     converged = 0;
     emin = INT_MAX;
@@ -113,8 +111,8 @@ int main(int argc, char *argv[])
     {
         for (itry = 0; itry < (ntry[irun+1] - ntry[irun]); itry++)
         {
+            print_header();
             R_randomize(&r, imask);   /* randomize free spins */
-
             nsweep = nsweep_ini;
             e_demon = emax_demon = emax_demon_ini;
             nflip_sweep = 0;
@@ -124,7 +122,7 @@ int main(int argc, char *argv[])
                 nflip = 0;
                 e_demon_av = 0;
                 emin_stage = INT_MAX;
-                emax_demon = (int) ceil(emax_demon * ( 1. - istage/(nstage-1.) ));
+                emax_demon = (int) (emax_demon * ( 1. - istage/(nstage-1.) ));
 
                 for (isweep = 0; isweep < nsweep; isweep++)
                 {
@@ -144,14 +142,18 @@ int main(int argc, char *argv[])
 
 #ifdef FULL_OUTPUT
                 /* print stats */
-                printf("%3d %8d %8d %8d %12d %12.2f %8.2f %12d %8d\n",
+                printf("%3d %8d %8d %8d %12d %12.2f %8.5f %10.2f %12d %8d\n",
                         irun, itry, istage, nsweep, emax_demon,
                         (double) e_demon_av/(isweep+1),
                         (double) nflip/NED/(isweep+1),
+                        (double) nflip/NED,
                         emin_stage, emin);
                 fflush(stdout);
 #endif
-                if (converged || (! nflip_sweep)) break;   /* reached a local minimum, try again */
+                if (converged || (! nflip_sweep)) break;
+
+                /*nsweep *= 1./(1. - istage/(nstage-1.))*/
+                nsweep *= 1.4;
             }
 
             if (converged) break;
@@ -162,7 +164,6 @@ int main(int argc, char *argv[])
         fflush(stdout);
 #endif
         if (converged) break;
-        print_header();
     }
 
     R_finalize();
