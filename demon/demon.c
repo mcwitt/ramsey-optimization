@@ -151,7 +151,7 @@ int main(int argc, char *argv[])
 #ifdef FULL_OUTPUT
                 /* print stats */
                 printf("%3d %8d %8d %8d %12d %12.2f %8.5f %10.2f %12d %8d\n",
-                        irun, ++itry_total, istage, nsweep, emax_demon,
+                        irun, itry_total, istage, nsweep, emax_demon,
                         (double) e_demon_av/(isweep+1),
                         (double) nflip/NED/(isweep+1),
                         (double) nflip/NED,
@@ -161,10 +161,11 @@ int main(int argc, char *argv[])
                 if (converged || (! nflip_sweep)) break;
 
                 /*nsweep *= 1./(1. - istage/(nstage-1.))*/
-                nsweep *= 1.4;
+                nsweep *= 1.25;
             }
 
             if (converged) break;
+            itry_total++;
         }
 
 #ifndef FULL_OUTPUT
