@@ -1,5 +1,8 @@
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#define NED_MAX 2048
 
 int clique_count(int sp[], int nv, int color, int n)
 {
@@ -45,31 +48,37 @@ int energy(int sp[], int nv, int r, int s)
 
 int main(int argc, char *argv[])
 {
-    FILE *fp;
-    int *sp;
-    int nv, r, s, ned, i = 0;
+    int sp[NED_MAX];
+    int nv, r, s, ned, i;
 
-    if (argc != 4)
+    if (argc != 3)
     {
-        fprintf(stderr, "Usage: %s graph_file r s\n", argv[0]);
+        fprintf(stderr, "Usage: %s r s\n", argv[0]);
+        fprintf(stderr, "Reads graph string from stdin\n");
         exit(EXIT_FAILURE);
     }
 
-    fp = fopen(argv[1], "r");
-    r = atoi(argv[2]);
-    s = atoi(argv[3]);
+    r = atoi(argv[1]);
+    s = atoi(argv[2]);
 
-    fscanf(fp, "%d", &nv);
-    ned = nv*(nv-1)/2;
-    sp = (int*) malloc(ned * sizeof(int));
-
-    while (fscanf(fp, "%d", &sp[i]) && i < ned)
+    while (scanf("%d", &nv) > 0)
     {
-        if (sp[i] == 0) sp[i] = -1;
-        i++;
-    }
+        ned = nv*(nv-1)/2;
+        assert(ned < NED_MAX);
 
-    printf("%d\n", energy(sp, nv, r, s));
+        for (i = 0; i < ned; i++)
+        {
+            if (scanf("%d", &sp[i]) <= 0)
+            {
+                fprintf(stderr, "error in input\n");
+                return EXIT_FAILURE;
+            }
+
+            if (sp[i] == 0) sp[i] = -1;
+        }
+
+        printf("%d\n", energy(sp, nv, r, s));
+    }
 
     return EXIT_SUCCESS;
 }
