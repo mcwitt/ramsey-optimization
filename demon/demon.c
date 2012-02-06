@@ -23,7 +23,7 @@ int e_demon;
 void print_header()
 {
 #ifdef FULL_OUTPUT
-    printf("%3s %8s %8s %8s %12s %12s %8s %10s %12s %8s\n",
+    printf("# %3s %8s %8s %8s %12s %12s %8s %10s %12s %8s\n",
             "run", "try", "stage", "nsweep", "emax_demon", "e_demon_av", "a.r.", "nflip/spin", "emin_stage", "emin");
 #else
     printf("%8s %8s\n", "N_try", "E_min");
@@ -158,7 +158,7 @@ int main(int argc, char *argv[])
 
 #ifdef FULL_OUTPUT
                 /* print stats */
-                printf("%3d %8d %8d %8d %12d %12.2f %8.5f %10.2f %12d %8d\n",
+                printf("%5d %8d %8d %8d %12d %12.2f %8.5f %10.2f %12d %8d\n",
                         irun, itry_total, istage, nsweep, emax_demon,
                         (double) e_demon_av/(isweep+1),
                         (double) nflip/NED/(isweep+1),
