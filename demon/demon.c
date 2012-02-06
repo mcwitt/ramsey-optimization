@@ -136,16 +136,24 @@ int main(int argc, char *argv[])
                 {
                     sweep(emax_demon, &nflip_sweep);
                     e_demon_av += e_demon;
-                    if (! nflip_sweep) break;
+                    if (nflip_sweep == 0) break;
                     nflip += nflip_sweep;
-                    if (r.en < emin_stage) emin_stage = r.en;
-                }
 
-                if (emin_stage < emin)
-                {
-                    emin = emin_stage;
-                    if (emin < WRITE_MAX) R_save_graph(r.sp, filename);
-                    if (emin == 0) converged = 1;
+                    if (r.en < emin_stage)
+                    {
+                        emin_stage = r.en;
+
+                        if (emin_stage < emin)
+                        {
+                            emin = emin_stage;
+
+                            if (emin < WRITE_MAX)
+                            {
+                                R_save_graph(r.sp, filename);
+                                if (emin == 0) { converged = 1; break; }
+                            }
+                        }
+                    }
                 }
 
 #ifdef FULL_OUTPUT
@@ -158,10 +166,10 @@ int main(int argc, char *argv[])
                         emin_stage, emin);
                 fflush(stdout);
 #endif
-                if (converged || (! nflip_sweep)) break;
+                if (converged || (nflip_sweep == 0)) break;
 
                 /*nsweep *= 1./(1. - istage/(nstage-1.))*/
-                nsweep *= 1.25;
+                nsweep *= 1.15;
             }
 
             if (converged) break;
