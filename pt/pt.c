@@ -181,7 +181,7 @@ int main(int argc, char *argv[])
     emin = INT_MAX;
     nsweeps = 0;
 
-    while (nsweeps < max_sweeps)
+    while ((nsweeps < max_sweeps) && (emin > 0))
     {
         sweep();
         nsweeps++;
@@ -195,12 +195,11 @@ int main(int argc, char *argv[])
             {
                 emin = p->en;
                 print_status();
-                if (emin < WRITE_MAX) R_save_graph(p->sp, filename);
 
-                if (emin == 0)
+                if (emin < WRITE_MAX)
                 {
-                    R_finalize();
-                    return EXIT_SUCCESS;
+                    R_save_graph(p->sp, filename);
+                    if (emin == 0) break;
                 }
             }
         }
@@ -209,5 +208,5 @@ int main(int argc, char *argv[])
     print_status();
     R_finalize();
 
-    return EXIT_FAILURE;
+    return (emin == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
