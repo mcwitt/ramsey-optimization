@@ -43,7 +43,7 @@ void print_nbcount(int sp[], int nv, int t, int igraph)
 int main(int argc, char *argv[])
 {
     int sp[NED_MAX];
-    int nv, r, t, ned, i, igraph = 0;
+    int nv, t, ned, i, igraph = 0;
 
     if (argc != 2)
     {
