@@ -1,0 +1,13 @@
+*.swp
+
+*.o
+*.out
+*.pyc
+
+*.graph
+*.log
+*.tmp
+*.npy
+*.eps
+
+.DS_Store*
