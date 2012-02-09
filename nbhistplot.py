@@ -3,8 +3,9 @@ import matplotlib.pyplot as plt
 import IPython
 
 def nbhistplot(fname, fmt='r-o', label=None):
-    data = np.loadtxt(fname, unpack=True);
+    data = np.loadtxt(fname, unpack=True)
     if not label: label = fname
+
     if len(data) == 3:
         nb, count, err = data
         plt.errorbar(nb, count, err, fmt=fmt, label=label)
@@ -18,11 +19,10 @@ def nbhistplot(fname, fmt='r-o', label=None):
 if __name__=='__main__':
     import sys
 
-    plt.ion()
     fig = plt.figure()
     ax = fig.add_subplot(111)
-    data = dict()
     fmts = ['r-o', 'b-s', 'g-v']
+    data = dict()
 
     for fname, fmt in zip(sys.argv[1:], fmts):
         data[fname] = nbhistplot(fname, fmt)
