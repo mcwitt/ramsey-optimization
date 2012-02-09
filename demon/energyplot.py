@@ -19,7 +19,7 @@ if __name__=='__main__':
 
     fig = plt.figure()
     ax = fig.add_subplot(111)
-    fmts = ['r-o', 'b-s', 'g-v']
+    fmts = ['r-o', 'b-s', 'g-v', 'y-^', 'm-p', 'c-x', 'k-D', 'r-s']
     data = dict()
 
     for fname, fmt in zip(sys.argv[1:], fmts):
