@@ -126,12 +126,9 @@ void R_update_fields(rep_t *p, int ei)
         {
             n = nb[subr[ei][si]] += 1;
 
-            if (n == 1)        /* destroyed a red clique */
-            {
-                h2[ei] += 1;
-                for (j = 0; j < nedr; j++) h2[edgr[subr[ei][si]][j]] -= 1;
-            }
-            else if (n == 2)   /* destroyed an incomplete red clique */
+            if (n > 2) continue;
+
+            if (n == 2) /* destroyed an incomplete red clique */
             {
                 for (j = 0; j < nedr; j++)
                 {
@@ -139,24 +136,31 @@ void R_update_fields(rep_t *p, int ei)
                     if (sp[ej] == 1 && ej != ei) { h2[ej] -= 1; break; }
                 }
             }
+            else        /* (n = 1) destroyed a red clique */
+            {
+                h2[ei] += 1;
+                for (j = 0; j < nedr; j++) h2[edgr[subr[ei][si]][j]] -= 1;
+            }
         }
 
         for (si = 0; si < NSGFES; si++)
         {
             n = nr[subs[ei][si]] -= 1;
 
-            if (n == 0)         /* created a blue clique */
-            {
-                h2[ei] += 1;
-                for (j = 0; j < neds; j++) h2[edgs[subs[ei][si]][j]] -= 1;
-            }
-            else if (n == 1)    /* created an incomplete blue clique */
+            if (n > 1) continue;
+
+            if (n == 1) /* created an incomplete blue clique */
             {
                 for (j = 0; j < neds; j++)
                 {
                     ej = edgs[subs[ei][si]][j];
                     if (sp[ej] == -1) { h2[ej] -= 1; break; }
                 }
+            }
+            else        /* (n = 0) created a blue clique */
+            {
+                h2[ei] += 1;
+                for (j = 0; j < neds; j++) h2[edgs[subs[ei][si]][j]] -= 1;
             }
         }
     }
@@ -166,12 +170,9 @@ void R_update_fields(rep_t *p, int ei)
         {
             n = nb[subr[ei][si]] -= 1;
 
-            if (n == 0)         /* created a red clique */
-            {
-                h2[ei] -= 1;
-                for (j = 0; j < nedr; j++) h2[edgr[subr[ei][si]][j]] += 1;
-            }
-            else if (n == 1)    /* created an incomplete red clique */
+            if (n > 1) continue;
+
+            if (n == 1) /* created an incomplete red clique */
             {
                 for (j = 0; j < nedr; j++)
                 {
@@ -179,24 +180,31 @@ void R_update_fields(rep_t *p, int ei)
                     if (sp[ej] == 1) { h2[ej] += 1; break; }
                 }
             }
+            else        /* (n = 0) created a red clique */
+            {
+                h2[ei] -= 1;
+                for (j = 0; j < nedr; j++) h2[edgr[subr[ei][si]][j]] += 1;
+            }
         }
 
         for (si = 0; si < NSGFES; si++)
         {
             n = nr[subs[ei][si]] += 1;
 
-            if (n == 1)         /* destroyed a blue clique */
-            {
-                h2[ei] -= 1;
-                for (j = 0; j < neds; j++) h2[edgs[subs[ei][si]][j]] += 1;
-            }
-            else if (n == 2)    /* destroyed an incomplete blue clique */
+            if (n > 2) continue;
+
+            if (n == 2) /* destroyed an incomplete blue clique */
             {
                 for (j = 0; j < neds; j++)
                 {
                     ej = edgs[subs[ei][si]][j];
                     if (sp[ej] == -1 && ej != ei) { h2[ej] += 1; break; }
                 }
+            }
+            else        /* (n = 1) destroyed a blue clique */
+            {
+                h2[ei] -= 1;
+                for (j = 0; j < neds; j++) h2[edgs[subs[ei][si]][j]] += 1;
             }
         }
     }
