@@ -14,8 +14,6 @@ int *edgs[NSGS];
 
 int nedr = R*(R-1)/2;       /* number of edges in an R-subgraph */
 int neds = S*(S-1)/2;       /* number of edges in an S-subgraph */
-int nedsm1 = S*(S-1)/2 - 1; /* neds minus one */
-int nedsm2 = S*(S-1)/2 - 2;
 
 void init_tabs(int *sub[], int *edg[], int t, int nsgfe, int nedrs);
 void free_tabs(int *sub[], int *edg[], int nsg);
@@ -40,8 +38,8 @@ void R_init_replica(rep_t *p)
     int j;
 
     p->en = NSGS;
-    for (j = 0; j < NSGR; j++) p->nbr[j] = nedr;
-    for (j = 0; j < NSGS; j++) p->nbs[j] = neds;
+    for (j = 0; j < NSGR; j++) p->nb[j] = nedr;
+    for (j = 0; j < NSGS; j++) p->nr[j] = 0;
 
     for (j = 0; j < NED; j++)
     {
@@ -116,46 +114,24 @@ void R_randomize(rep_t *p, int imask)
 
 void R_update_fields(rep_t *p, int ei)
 {
-    int si, j, ej, nbf;
+    int si, j, ej, n;
     int *sp = p->sp;
     int *h2 = p->h2;
-    int *nbr = p->nbr;
-    int *nbs = p->nbs;
+    int *nr = p->nr;
+    int *nb = p->nb;
 
     if (sp[ei] == 1)
     {
-        /* iterate over S-subgraphs including edge ei */
-        for (si = 0; si < NSGFES; si++)
-        {
-            nbf = nbs[subs[ei][si]] += 1;
-
-            if (nbf == neds)        /* flip created a blue clique */
-            {
-                h2[ei] += 1;
-                for (j = 0; j < neds; j++) h2[edgs[subs[ei][si]][j]] -= 1;
-            }
-            else if (nbf == nedsm1)
-            {
-                /* flip created an incomplete blue clique (one red edge) */
-                for (j = 0; j < neds; j++)
-                {
-                    ej = edgs[subs[ei][si]][j];
-                    if (sp[ej] == -1) { h2[ej] -= 1; break; }
-                }
-            }
-        }
-
-        /* iterate over R-subgraphs including edge ei */
         for (si = 0; si < NSGFER; si++)
         {
-            nbf = nbr[subr[ei][si]] += 1;
+            n = nb[subr[ei][si]] += 1;
 
-            if (nbf == 1)       /* flip destroyed a red clique */
+            if (n == 1)        /* destroyed a red clique */
             {
                 h2[ei] += 1;
                 for (j = 0; j < nedr; j++) h2[edgr[subr[ei][si]][j]] -= 1;
             }
-            else if (nbf == 2)   /* flip destroyed an incomplete red clique */
+            else if (n == 2)   /* destroyed an incomplete red clique */
             {
                 for (j = 0; j < nedr; j++)
                 {
@@ -164,19 +140,38 @@ void R_update_fields(rep_t *p, int ei)
                 }
             }
         }
+
+        for (si = 0; si < NSGFES; si++)
+        {
+            n = nr[subs[ei][si]] -= 1;
+
+            if (n == 0)         /* created a blue clique */
+            {
+                h2[ei] += 1;
+                for (j = 0; j < neds; j++) h2[edgs[subs[ei][si]][j]] -= 1;
+            }
+            else if (n == 1)    /* created an incomplete blue clique */
+            {
+                for (j = 0; j < neds; j++)
+                {
+                    ej = edgs[subs[ei][si]][j];
+                    if (sp[ej] == -1) { h2[ej] -= 1; break; }
+                }
+            }
+        }
     }
     else
     {
         for (si = 0; si < NSGFER; si++)
         {
-            nbf = nbr[subr[ei][si]] -= 1;
+            n = nb[subr[ei][si]] -= 1;
 
-            if (nbf == 0)       /* created a red clique */
+            if (n == 0)         /* created a red clique */
             {
                 h2[ei] -= 1;
                 for (j = 0; j < nedr; j++) h2[edgr[subr[ei][si]][j]] += 1;
             }
-            else if (nbf == 1)  /* created an incomplete red clique */
+            else if (n == 1)    /* created an incomplete red clique */
             {
                 for (j = 0; j < nedr; j++)
                 {
@@ -188,14 +183,14 @@ void R_update_fields(rep_t *p, int ei)
 
         for (si = 0; si < NSGFES; si++)
         {
-            nbf = nbs[subs[ei][si]] -= 1;
+            n = nr[subs[ei][si]] += 1;
 
-            if (nbf == nedsm1)      /* destroyed a blue clique */
+            if (n == 1)         /* destroyed a blue clique */
             {
                 h2[ei] -= 1;
                 for (j = 0; j < neds; j++) h2[edgs[subs[ei][si]][j]] += 1;
             }
-            else if (nbf == nedsm2) /* destroyed an incomplete blue clique */
+            else if (n == 2)    /* destroyed an incomplete blue clique */
             {
                 for (j = 0; j < neds; j++)
                 {

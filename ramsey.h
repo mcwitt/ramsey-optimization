@@ -25,8 +25,8 @@ typedef struct
 {
     int sp[NED];
     int h2[NED];
-    int nbr[NSGR];  /* number of blue edges in each R-subgraph */
-    int nbs[NSGS];  /* number of blue edges in each S-subgraph */
+    int nb[NSGR];   /* number of blue edges in each R-subgraph */
+    int nr[NSGS];   /* number of red edges in each S-subgraph */
     int en;         /* number of blue S-cliques and red R-cliques */
 } rep_t;
 
