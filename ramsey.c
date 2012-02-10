@@ -125,7 +125,6 @@ void R_update_fields(rep_t *p, int ei)
         for (si = 0; si < NSGFER; si++)
         {
             n = nb[subr[ei][si]] += 1;
-
             if (n > 2) continue;
 
             if (n == 2) /* destroyed an incomplete red clique */
@@ -146,7 +145,6 @@ void R_update_fields(rep_t *p, int ei)
         for (si = 0; si < NSGFES; si++)
         {
             n = nr[subs[ei][si]] -= 1;
-
             if (n > 1) continue;
 
             if (n == 1) /* created an incomplete blue clique */
@@ -169,7 +167,6 @@ void R_update_fields(rep_t *p, int ei)
         for (si = 0; si < NSGFER; si++)
         {
             n = nb[subr[ei][si]] -= 1;
-
             if (n > 1) continue;
 
             if (n == 1) /* created an incomplete red clique */
@@ -190,7 +187,6 @@ void R_update_fields(rep_t *p, int ei)
         for (si = 0; si < NSGFES; si++)
         {
             n = nr[subs[ei][si]] += 1;
-
             if (n > 2) continue;
 
             if (n == 2) /* destroyed an incomplete blue clique */
