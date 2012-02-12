@@ -18,6 +18,10 @@
 #error Missing required definitions. See dSFMT.h.
 #endif
 
+#if (R > S)
+#error Please change definitions so that R < S.
+#endif
+
 #define R_RAND() dsfmt_genrand_close_open(&rng_state)
         
 /* Strucure to store the configuration of one replica */
@@ -53,15 +57,11 @@ void R_init_replica_random(rep_t *p);
  */
 int R_init_replica_from_file(rep_t *p, char filename[]);
 
-/* Randomizes spins with indices less than imask */
+/* Randomize spins with indices less than imask */
 void R_randomize(rep_t *p, int imask);
 
-/*
- * Update local fields after a spin flip (called AFTER spin assigned new value)
- *      p   : pointer to affected replica
- *      ei  : index of flipped spin
- */
-void R_update_fields(rep_t *p, int ei);
+/* Flip spin with index ei (note this does NOT update the energy) */
+void R_flip(rep_t *p, int ei);
 
 /* Save graph to file */
 void R_save_graph(int sp[], char filename[]);

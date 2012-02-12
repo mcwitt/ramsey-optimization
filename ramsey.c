@@ -84,9 +84,8 @@ int R_init_replica_from_file(rep_t *p, char filename[])
     {
         if (sp == 0)
         {
-            p->sp[j] = -1;
             p->en += p->h2[j];
-            R_update_fields(p, j);
+            R_flip(p, j);
         }
 
         j++;
@@ -106,13 +105,12 @@ void R_randomize(rep_t *p, int imask)
         if (R_RAND() < 0.5)
         {
             p->en += p->sp[j]*p->h2[j];
-            p->sp[j] *= -1;
-            R_update_fields(p, j);
+            R_flip(p, j);
         }
     }
 }
 
-void R_update_fields(rep_t *p, int ei)
+void R_flip(rep_t *p, int ei)
 {
     int si, j, ej, n;
     int *sp = p->sp;
@@ -120,7 +118,7 @@ void R_update_fields(rep_t *p, int ei)
     int *nr = p->nr;
     int *nb = p->nb;
 
-    if (sp[ei] == 1)
+    if ((sp[ei] *= -1) == 1)
     {
         for (si = 0; si < NSGFER; si++)
         {

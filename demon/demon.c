@@ -41,8 +41,7 @@ void sweep(int emax_demon, int *nflip)
         {
             r.en += delta;
             e_demon -= delta;
-            r.sp[j] *= -1;
-            R_update_fields(&r, j);
+            R_flip(&r, j);
             if (e_demon > emax_demon) e_demon = emax_demon;
             *nflip += 1;
         }
