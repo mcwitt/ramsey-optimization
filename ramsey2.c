@@ -112,12 +112,11 @@ void R_randomize(rep_t *p, int imask)
 
 void R_flip(rep_t *p, int ei)
 {
-    int si, j, n;
+    int si, j, ej, n;
     int *sp = p->sp;
     int *h2 = p->h2;
     int *nr = p->nr;
     int *nb = p->nb;
-    int *e;
 
     if ((sp[ei] *= -1) == 1)
     {
@@ -125,17 +124,19 @@ void R_flip(rep_t *p, int ei)
         {
             n = nb[subr[ei][si]] += 1;
             if (n > 2) continue;
-            e = edgr[subr[ei][si]];
 
             if (n == 2) /* destroyed an incomplete red clique */
             {
                 for (j = 0; j < nedr; j++)
-                    if (sp[e[j]] == 1 && e[j] != ei) { h2[e[j]] -= 1; break; }
+                {
+                    ej = edgr[subr[ei][si]][j];
+                    if (sp[ej] == 1 && ej != ei) { h2[ej] -= 1; break; }
+                }
             }
             else        /* (n = 1) destroyed a red clique */
             {
                 h2[ei] += 1;
-                for (j = 0; j < nedr; j++) h2[e[j]] -= 1;
+                for (j = 0; j < nedr; j++) h2[edgr[subr[ei][si]][j]] -= 1;
             }
         }
 
@@ -143,17 +144,19 @@ void R_flip(rep_t *p, int ei)
         {
             n = nr[subs[ei][si]] -= 1;
             if (n > 1) continue;
-            e = edgs[subs[ei][si]];
 
             if (n == 1) /* created an incomplete blue clique */
             {
                 for (j = 0; j < neds; j++)
-                    if (sp[e[j]] == -1) { h2[e[j]] -= 1; break; }
+                {
+                    ej = edgs[subs[ei][si]][j];
+                    if (sp[ej] == -1) { h2[ej] -= 1; break; }
+                }
             }
             else        /* (n = 0) created a blue clique */
             {
                 h2[ei] += 1;
-                for (j = 0; j < neds; j++) h2[e[j]] -= 1;
+                for (j = 0; j < neds; j++) h2[edgs[subs[ei][si]][j]] -= 1;
             }
         }
     }
@@ -163,17 +166,19 @@ void R_flip(rep_t *p, int ei)
         {
             n = nb[subr[ei][si]] -= 1;
             if (n > 1) continue;
-            e = edgr[subr[ei][si]];
 
             if (n == 1) /* created an incomplete red clique */
             {
                 for (j = 0; j < nedr; j++)
-                    if (sp[e[j]] == 1) { h2[e[j]] += 1; break; }
+                {
+                    ej = edgr[subr[ei][si]][j];
+                    if (sp[ej] == 1) { h2[ej] += 1; break; }
+                }
             }
             else        /* (n = 0) created a red clique */
             {
                 h2[ei] -= 1;
-                for (j = 0; j < nedr; j++) h2[e[j]] += 1;
+                for (j = 0; j < nedr; j++) h2[edgr[subr[ei][si]][j]] += 1;
             }
         }
 
@@ -181,17 +186,19 @@ void R_flip(rep_t *p, int ei)
         {
             n = nr[subs[ei][si]] += 1;
             if (n > 2) continue;
-            e = edgs[subs[ei][si]];
 
             if (n == 2) /* destroyed an incomplete blue clique */
             {
                 for (j = 0; j < neds; j++)
-                    if (sp[e[j]] == -1 && e[j] != ei) { h2[e[j]] += 1; break; }
+                {
+                    ej = edgs[subs[ei][si]][j];
+                    if (sp[ej] == -1 && ej != ei) { h2[ej] += 1; break; }
+                }
             }
             else        /* (n = 1) destroyed a blue clique */
             {
                 h2[ei] -= 1;
-                for (j = 0; j < neds; j++) h2[e[j]] += 1;
+                for (j = 0; j < neds; j++) h2[edgs[subs[ei][si]][j]] += 1;
             }
         }
     }

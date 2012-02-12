@@ -60,9 +60,8 @@ void sweep()
             /* flip with Metropolis probability */
             if (delta <= 0 || R_RAND() < exp(mbeta[iT]*delta))
             {
-                p->sp[j] *= -1;
                 p->en += delta;
-                R_update_fields(p, j);
+                R_flip(p, j);
             }
         }
     }
