@@ -110,96 +110,68 @@ void R_randomize(rep_t *p, int imask)
     }
 }
 
-void R_flip(rep_t *p, int ei)
+int er[] = {1, 0, 0, 0, 0, 0};
+int es[] = {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+void R_flip(rep_t *p, int edge)
 {
-    int si, j, ej, n;
+    int isub, sg, iedge, dhr, dhb;
+    int *edges;
     int *sp = p->sp;
     int *h2 = p->h2;
     int *nr = p->nr;
     int *nb = p->nb;
 
-    if ((sp[ei] *= -1) == 1)
+    if ((sp[edge] *= -1) == 1)
     {
-        for (si = 0; si < NSGFER; si++)
+        for (isub = 0; isub < NSGFER; isub++)
         {
-            n = nb[subr[ei][si]] += 1;
-            if (n > 2) continue;
+            sg = subr[edge][isub];
+            nb[sg] += 1;
+            dhr = er[nb[sg]] - er[nb[sg]-1];
+            dhb = er[nb[sg]-1] - er[nb[sg]-2];
+            edges = edgr[subr[edge][isub]];
 
-            if (n == 2) /* destroyed an incomplete red clique */
-            {
-                for (j = 0; j < nedr; j++)
-                {
-                    ej = edgr[subr[ei][si]][j];
-                    if (sp[ej] == 1 && ej != ei) { h2[ej] -= 1; break; }
-                }
-            }
-            else        /* (n = 1) destroyed a red clique */
-            {
-                h2[ei] += 1;
-                for (j = 0; j < nedr; j++) h2[edgr[subr[ei][si]][j]] -= 1;
-            }
+            for (iedge = 0; iedge < nedr; iedge++) if (edges[iedge] != edge)
+                h2[edges[iedge]] += ((sp[edges[iedge]] == 1) ? dhb : dhr);
         }
 
-        for (si = 0; si < NSGFES; si++)
+        for (isub = 0; isub < NSGFES; isub++)
         {
-            n = nr[subs[ei][si]] -= 1;
-            if (n > 1) continue;
+            sg = subs[edge][isub];
+            nr[sg] -= 1;
+            dhr = es[nr[sg]-1] - es[nr[sg]];
+            dhb = es[nr[sg]] - es[nr[sg]+1];
+            edges = edgs[subs[edge][isub]];
 
-            if (n == 1) /* created an incomplete blue clique */
-            {
-                for (j = 0; j < neds; j++)
-                {
-                    ej = edgs[subs[ei][si]][j];
-                    if (sp[ej] == -1) { h2[ej] -= 1; break; }
-                }
-            }
-            else        /* (n = 0) created a blue clique */
-            {
-                h2[ei] += 1;
-                for (j = 0; j < neds; j++) h2[edgs[subs[ei][si]][j]] -= 1;
-            }
+            for (iedge = 0; iedge < neds; iedge++) if (edges[iedge] != edge)
+                h2[edges[iedge]] -= ((sp[edges[iedge]] == 1) ? dhb : dhr);
         }
     }
     else
     {
-        for (si = 0; si < NSGFER; si++)
+        for (isub = 0; isub < NSGFER; isub++)
         {
-            n = nb[subr[ei][si]] -= 1;
-            if (n > 1) continue;
+            sg = subr[edge][isub];
+            nb[sg] -= 1;
+            dhr = er[nb[sg]] - er[nb[sg]+1];
+            dhb = er[nb[sg]-1] - er[nb[sg]];
+            edges = edgr[subr[edge][isub]];
 
-            if (n == 1) /* created an incomplete red clique */
-            {
-                for (j = 0; j < nedr; j++)
-                {
-                    ej = edgr[subr[ei][si]][j];
-                    if (sp[ej] == 1) { h2[ej] += 1; break; }
-                }
-            }
-            else        /* (n = 0) created a red clique */
-            {
-                h2[ei] -= 1;
-                for (j = 0; j < nedr; j++) h2[edgr[subr[ei][si]][j]] += 1;
-            }
+            for (iedge = 0; iedge < nedr; iedge++) if (edges[iedge] != edge)
+                h2[edges[iedge]] += ((sp[edges[iedge]] == 1) ? dhb : dhr);
         }
 
-        for (si = 0; si < NSGFES; si++)
+        for (isub = 0; isub < NSGFES; isub++)
         {
-            n = nr[subs[ei][si]] += 1;
-            if (n > 2) continue;
+            sg = subs[edge][isub];
+            nr[sg] += 1;
+            dhr = es[nr[sg]-1] - es[nr[sg]-2];
+            dhb = es[nr[sg]] - es[nr[sg]-1];
+            edges = edgs[subs[edge][isub]];
 
-            if (n == 2) /* destroyed an incomplete blue clique */
-            {
-                for (j = 0; j < neds; j++)
-                {
-                    ej = edgs[subs[ei][si]][j];
-                    if (sp[ej] == -1 && ej != ei) { h2[ej] += 1; break; }
-                }
-            }
-            else        /* (n = 1) destroyed a blue clique */
-            {
-                h2[ei] -= 1;
-                for (j = 0; j < neds; j++) h2[edgs[subs[ei][si]][j]] += 1;
-            }
+            for (iedge = 0; iedge < neds; iedge++) if (edges[iedge] != edge)
+                h2[edges[iedge]] -= ((sp[edges[iedge]] == 1) ? dhb : dhr);
         }
     }
 }

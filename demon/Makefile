@@ -8,6 +8,10 @@ CFLAGS = -I.. -Wall -std=gnu99 -lm -O3 $(dsfmt_flags) -DFULL_OUTPUT
 OBJECTS = dSFMT.o
 
 .PHONY: demon
+.PHONY: demon2
+
+demon2: demon.c ramsey2.c dSFMT.o
+	$(CC) -DNV=$(NV) -DR=$R -DS=$S -DNED=$(NED) -DNSGR=$(NSGR) -DNSGS=$(NSGS) -DNSGFER=$(NSGFER) -DNSGFES=$(NSGFES) -o $@_$R-$S-$(NV).out $^ $(CFLAGS)
 
 demon: demon.c ramsey.c dSFMT.o
 	$(CC) -DNV=$(NV) -DR=$R -DS=$S -DNED=$(NED) -DNSGR=$(NSGR) -DNSGS=$(NSGS) -DNSGFER=$(NSGFER) -DNSGFES=$(NSGFES) -o $@_$R-$S-$(NV).out $^ $(CFLAGS)
