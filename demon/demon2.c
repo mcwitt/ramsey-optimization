@@ -12,7 +12,7 @@
 #include <limits.h>
 #include <math.h>
 #include <stdio.h>
-#include "ramsey3.h"
+#include "ramsey2.h"
 
 #define WRITE_MAX 10.  /* only save graph when energy is below this value */
 #define NRUN_MAX 100
@@ -36,13 +36,13 @@ void sweep(int emax_demon, int *nflip)
 
     for (j = 0; j < NED; j++)
     {
-        delta = r.sp[j]*r.h2[j];
+        delta = r.sp[j] * R_h2(&r, j);
 
         if (delta < e_demon)
         {
             r.en += delta;
             e_demon -= delta;
-            R_flip(&r, j);
+            r.sp[j] *= -1;
             if (e_demon > emax_demon) e_demon = emax_demon;
             *nflip += 1;
         }

@@ -10,9 +10,13 @@ OBJECTS = dSFMT.o
 
 .PHONY: demon
 .PHONY: demon2
+.PHONY: demon3
 
-demon3: demon3.c ramsey3.c dSFMT.o
+demon2: demon2.c ramsey2.c dSFMT.o
 	$(CC) -DNV=$(NV) -DR=$R -DS=$S -DNED=$(NED) -DNSGR=$(NSGR) -DNSGS=$(NSGS) -DNSGFER=$(NSGFER) -DNSGFES=$(NSGFES) -o $@_$R-$S-$(NV).out $^ $(CFLAGS)
+
+#demon3: demon3.c ramsey3.c dSFMT.o
+#	$(CC) -DNV=$(NV) -DR=$R -DS=$S -DNED=$(NED) -DNSGR=$(NSGR) -DNSGS=$(NSGS) -DNSGFER=$(NSGFER) -DNSGFES=$(NSGFES) -o $@_$R-$S-$(NV).out $^ $(CFLAGS)
 
 #demon: demon.c ramsey.c dSFMT.o
 #	$(CC) -DNV=$(NV) -DR=$R -DS=$S -DNED=$(NED) -DNSGR=$(NSGR) -DNSGS=$(NSGS) -DNSGFER=$(NSGFER) -DNSGFES=$(NSGFES) -o $@_$R-$S-$(NV).out $^ $(CFLAGS)

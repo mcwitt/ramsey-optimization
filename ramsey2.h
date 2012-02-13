@@ -30,7 +30,6 @@ typedef struct
     int sp[NED];
     int nb[NSGR];   /* number of blue edges in each R-subgraph */
     int nr[NSGS];   /* number of red edges in each S-subgraph */
-    double h2[NED]; /* local field */
     double en;      /* number of blue S-cliques and red R-cliques */
 } rep_t;
 
@@ -60,8 +59,8 @@ int R_init_replica_from_file(rep_t *p, char filename[]);
 /* Randomize spins with indices less than imask */
 void R_randomize(rep_t *p, int imask);
 
-/* Flip spin with index ei (note this does NOT update the energy) */
-void R_flip(rep_t *p, int ei);
+/* Compute the local field */
+double R_h2(rep_t *p, int edge);
 
 /* Save graph to file */
 void R_save_graph(int sp[], char filename[]);

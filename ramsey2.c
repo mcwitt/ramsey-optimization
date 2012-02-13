@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "ramsey3.h"
+#include "ramsey2.h"
 
 dsfmt_t rng_state;
 
@@ -8,29 +8,25 @@ dsfmt_t rng_state;
 int *subr[NED];
 int *subs[NED];
  
-/* edgs[si] (edgr[si]) lists the edges of S-subgraph (R-subgraph) si */
-int *edgr[NSGR];
-int *edgs[NSGS];
-
 int nedr = R*(R-1)/2;       /* number of edges in an R-subgraph */
 int neds = S*(S-1)/2;       /* number of edges in an S-subgraph */
 
-void init_tabs(int *sub[], int *edg[], int t, int nsgfe, int nedrs);
-void free_tabs(int *sub[], int *edg[], int nsg);
+void init_tabs(int *sub[], int t, int nsgfe);
+void free_tabs(int *sub[]);
 
 void R_init(uint32_t seed)
 {
     /* init random number generator */
     dsfmt_init_gen_rand(&rng_state, seed);
 
-    init_tabs(subr, edgr, R, NSGFER, nedr);
-    init_tabs(subs, edgs, S, NSGFES, neds);
+    init_tabs(subr, R, NSGFER);
+    init_tabs(subs, S, NSGFES);
 }
 
 void R_finalize()
 {
-    free_tabs(subr, edgr, NSGR);
-    free_tabs(subs, edgs, NSGS);
+    free_tabs(subr);
+    free_tabs(subs);
 }
 
 void R_init_replica(rep_t *p)
@@ -41,11 +37,7 @@ void R_init_replica(rep_t *p)
     for (j = 0; j < NSGR; j++) p->nb[j] = nedr;
     for (j = 0; j < NSGS; j++) p->nr[j] = 0;
 
-    for (j = 0; j < NED; j++)
-    {
-        p->sp[j] = 1;
-        p->h2[j] = (double) -NSGFES;
-    }
+    for (j = 0; j < NED; j++) p->sp[j] = 1;
 }
 
 void R_init_replica_random(rep_t *p)
@@ -84,8 +76,8 @@ int R_init_replica_from_file(rep_t *p, char filename[])
     {
         if (sp == 0)
         {
-            p->en += p->h2[j];
-            R_flip(p, j);
+            p->en += R_h2(p, j);
+            p->sp[j] = -1;
         }
 
         j++;
@@ -104,8 +96,8 @@ void R_randomize(rep_t *p, int imask)
     {
         if (R_RAND() < 0.5)
         {
-            p->en += p->sp[j]*p->h2[j];
-            R_flip(p, j);
+            p->en += p->sp[j]*R_h2(p, j);
+            p->sp[j] *= -1;
         }
     }
 }
@@ -113,68 +105,27 @@ void R_randomize(rep_t *p, int imask)
 double er[] = {1., 0, 0, 0, 0, 0};
 double es[] = {1., 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
-void R_flip(rep_t *p, int edge)
+double R_h2(rep_t *p, int edge)
 {
-    double dhr, dhb;
-    double *h2 = p->h2;
-    int isub, sg, iedge;
-    int *edges;
-    int *sp = p->sp;
+    double h2 = 0.;
+    int isub;
+    int sub;
     int *nr = p->nr;
     int *nb = p->nb;
 
-    if ((sp[edge] *= -1) == 1)
+    for (isub = 0; isub < NSGFER; isub++)
     {
-        for (isub = 0; isub < NSGFER; isub++)
-        {
-            sg = subr[edge][isub];
-            nb[sg] += 1;
-            dhr = er[nb[sg]] - er[nb[sg]-1];
-            dhb = er[nb[sg]-1] - er[nb[sg]-2];
-            edges = edgr[subr[edge][isub]];
-
-            for (iedge = 0; iedge < nedr; iedge++) if (edges[iedge] != edge)
-                h2[edges[iedge]] += ((sp[edges[iedge]] == 1) ? dhb : dhr);
-        }
-
-        for (isub = 0; isub < NSGFES; isub++)
-        {
-            sg = subs[edge][isub];
-            nr[sg] -= 1;
-            dhr = es[nr[sg]-1] - es[nr[sg]];
-            dhb = es[nr[sg]] - es[nr[sg]+1];
-            edges = edgs[subs[edge][isub]];
-
-            for (iedge = 0; iedge < neds; iedge++) if (edges[iedge] != edge)
-                h2[edges[iedge]] -= ((sp[edges[iedge]] == 1) ? dhb : dhr);
-        }
+        sub = subr[edge][isub];
+        h2 += er[nb[sub]-1] - er[nb[sub]];  /* energy to create red edge */
     }
-    else
+
+    for (isub = 0; isub < NSGFES; isub++)
     {
-        for (isub = 0; isub < NSGFER; isub++)
-        {
-            sg = subr[edge][isub];
-            nb[sg] -= 1;
-            dhr = er[nb[sg]] - er[nb[sg]+1];
-            dhb = er[nb[sg]-1] - er[nb[sg]];
-            edges = edgr[subr[edge][isub]];
-
-            for (iedge = 0; iedge < nedr; iedge++) if (edges[iedge] != edge)
-                h2[edges[iedge]] += ((sp[edges[iedge]] == 1) ? dhb : dhr);
-        }
-
-        for (isub = 0; isub < NSGFES; isub++)
-        {
-            sg = subs[edge][isub];
-            nr[sg] += 1;
-            dhr = es[nr[sg]-1] - es[nr[sg]-2];
-            dhb = es[nr[sg]] - es[nr[sg]-1];
-            edges = edgs[subs[edge][isub]];
-
-            for (iedge = 0; iedge < neds; iedge++) if (edges[iedge] != edge)
-                h2[edges[iedge]] -= ((sp[edges[iedge]] == 1) ? dhb : dhr);
-        }
+        sub = subs[edge][isub];
+        h2 += es[nr[sub]+1] - es[nr[sub]];  /* energy to destroy blue edge */
     }
+
+    return h2;
 }
 
 void R_save_graph(int sp[NED], char filename[])
@@ -191,10 +142,9 @@ void R_save_graph(int sp[NED], char filename[])
     fclose(fp);
 }
 
-void init_tabs(int *sub[], int *edg[], int t, int nsgfe, int nedrs)
+void init_tabs(int *sub[], int t, int nsgfe)
 {
     int ps[NED];    /* current positions in subgraph arrays */
-    int pe;         /* current position in edge array */
     int c[t+2];     /* array of vertices of the current subgraph */
     int ei, si;     /* edge index, subgraph index */
     int j, k;
@@ -228,9 +178,6 @@ void init_tabs(int *sub[], int *edg[], int t, int nsgfe, int nedrs)
          * (algorithm guarantees that c_1 < c_2 < ... < c_t)
          */
 
-        edg[si] = (int*) malloc(nedrs * sizeof(int));
-        pe = 0;
-
         /* iterate over edges in this subgraph */
         for (k = 0; k < t; k++)
         {
@@ -244,7 +191,6 @@ void init_tabs(int *sub[], int *edg[], int t, int nsgfe, int nedrs)
                  */
 
                 sub[ei][ps[ei]++] = si;
-                edg[si][pe++] = ei;
             }
         }
 
@@ -261,13 +207,11 @@ void init_tabs(int *sub[], int *edg[], int t, int nsgfe, int nedrs)
     }
 }
 
-void free_tabs(int *sub[], int *edg[], int nsg)
+void free_tabs(int *sub[])
 {
     int i;
 
     for (i = 0; i < NED; i++)
         free(sub[i]);
-    for (i = 0; i < nsg; i++)
-        free(edg[i]);
 }
 
