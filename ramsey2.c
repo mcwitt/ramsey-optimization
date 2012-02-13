@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "ramsey.h"
+#include "ramsey2.h"
 
 dsfmt_t rng_state;
 
@@ -37,14 +37,14 @@ void R_init_replica(rep_t *p)
 {
     int j;
 
-    p->en = NSGS;
+    p->en = (double) NSGS;
     for (j = 0; j < NSGR; j++) p->nb[j] = nedr;
     for (j = 0; j < NSGS; j++) p->nr[j] = 0;
 
     for (j = 0; j < NED; j++)
     {
         p->sp[j] = 1;
-        p->h2[j] = -NSGFES;
+        p->h2[j] = (double) -NSGFES;
     }
 }
 
@@ -110,15 +110,16 @@ void R_randomize(rep_t *p, int imask)
     }
 }
 
-int er[] = {1, 0, 0, 0, 0, 0};
-int es[] = {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+double er[] = {1., 0, 0, 0, 0, 0};
+double es[] = {1., 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 void R_flip(rep_t *p, int edge)
 {
-    int isub, sg, iedge, dhr, dhb;
+    double dhr, dhb;
+    double *h2 = p->h2;
+    int isub, sg, iedge;
     int *edges;
     int *sp = p->sp;
-    int *h2 = p->h2;
     int *nr = p->nr;
     int *nb = p->nb;
 

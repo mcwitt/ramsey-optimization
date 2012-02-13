@@ -28,10 +28,10 @@
 typedef struct
 {
     int sp[NED];
-    int h2[NED];
     int nb[NSGR];   /* number of blue edges in each R-subgraph */
     int nr[NSGS];   /* number of red edges in each S-subgraph */
-    int en;         /* number of blue S-cliques and red R-cliques */
+    double h2[NED]; /* local field */
+    double en;      /* number of blue S-cliques and red R-cliques */
 } rep_t;
 
 extern dsfmt_t rng_state;   /* state of random number generator (RNG) */
