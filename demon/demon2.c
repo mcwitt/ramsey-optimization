@@ -36,13 +36,14 @@ void sweep(int emax_demon, int *nflip)
 
     for (j = 0; j < NED; j++)
     {
-        delta = r.sp[j] * R_h2(&r, j);
+        delta = R_flip_energy(&r, j);
 
         if (delta < e_demon)
         {
             r.en += delta;
             e_demon -= delta;
             r.sp[j] *= -1;
+            R_update(&r, j);
             if (e_demon > emax_demon) e_demon = emax_demon;
             *nflip += 1;
         }

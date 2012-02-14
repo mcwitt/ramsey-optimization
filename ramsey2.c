@@ -36,7 +36,6 @@ void R_init_replica(rep_t *p)
     p->en = (double) NSGS;
     for (j = 0; j < NSGR; j++) p->nb[j] = nedr;
     for (j = 0; j < NSGS; j++) p->nr[j] = 0;
-
     for (j = 0; j < NED; j++) p->sp[j] = 1;
 }
 
@@ -76,8 +75,9 @@ int R_init_replica_from_file(rep_t *p, char filename[])
     {
         if (sp == 0)
         {
-            p->en += R_h2(p, j);
+            p->en += R_flip_energy(p, j);
             p->sp[j] = -1;
+            R_update(p, j);
         }
 
         j++;
@@ -96,8 +96,9 @@ void R_randomize(rep_t *p, int imask)
     {
         if (R_RAND() < 0.5)
         {
-            p->en += p->sp[j]*R_h2(p, j);
+            p->en += R_flip_energy(p, j);
             p->sp[j] *= -1;
+            R_update(p, j);
         }
     }
 }
@@ -105,27 +106,35 @@ void R_randomize(rep_t *p, int imask)
 double er[] = {1., 0, 0, 0, 0, 0};
 double es[] = {1., 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
-double R_h2(rep_t *p, int edge)
+double R_flip_energy(rep_t *p, int edge)
 {
-    double h2 = 0.;
-    int isub;
-    int sub;
+    double en = 0.;
+    int isub, sub, sp = p->sp[edge];
     int *nr = p->nr;
     int *nb = p->nb;
 
     for (isub = 0; isub < NSGFER; isub++)
     {
         sub = subr[edge][isub];
-        h2 += er[nb[sub]-1] - er[nb[sub]];  /* energy to create red edge */
+        en += er[nb[sub]-sp] - er[nb[sub]];
     }
 
     for (isub = 0; isub < NSGFES; isub++)
     {
         sub = subs[edge][isub];
-        h2 += es[nr[sub]+1] - es[nr[sub]];  /* energy to destroy blue edge */
+        en += es[nr[sub]+sp] - es[nr[sub]];
     }
 
-    return h2;
+    return en;
+}
+
+void R_update(rep_t *p, int edge)
+{
+    int isub;
+    int sp = p->sp[edge];
+
+    for (isub = 0; isub < NSGFER; isub++) p->nb[subr[edge][isub]] += sp;
+    for (isub = 0; isub < NSGFES; isub++) p->nr[subs[edge][isub]] -= sp;
 }
 
 void R_save_graph(int sp[NED], char filename[])

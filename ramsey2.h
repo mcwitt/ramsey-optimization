@@ -59,8 +59,11 @@ int R_init_replica_from_file(rep_t *p, char filename[]);
 /* Randomize spins with indices less than imask */
 void R_randomize(rep_t *p, int imask);
 
-/* Compute the local field */
-double R_h2(rep_t *p, int edge);
+/* Compute the energy to flip a spin */
+double R_flip_energy(rep_t *p, int edge);
+
+/* Must be called after each single spin flip to update state variables */
+void R_update(rep_t *p, int edge);
 
 /* Save graph to file */
 void R_save_graph(int sp[], char filename[]);
