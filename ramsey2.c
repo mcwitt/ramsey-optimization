@@ -1,23 +1,28 @@
 #include <stdio.h>
 #include "ramsey2.h"
 
-dsfmt_t rng_state;
+dsfmt_t R_rstate;
 
 /* subs[ei] (subr[ei]) lists the NSGFES (NSGFER) complete S-subgraphs
  * (R-subgraphs) that include edge ei */
 int *subr[NED];
 int *subs[NED];
  
-int nedr = R*(R-1)/2;       /* number of edges in an R-subgraph */
-int neds = S*(S-1)/2;       /* number of edges in an S-subgraph */
-
 void init_tabs(int *sub[], int t, int nsgfe);
 void free_tabs(int *sub[]);
 
+double der[NEDR-1]; /* der[i] = R_er[i] - R_er[i+1] */
+double des[NEDS-1];
+
 void R_init(uint32_t seed)
 {
+    int i;
+
     /* init random number generator */
-    dsfmt_init_gen_rand(&rng_state, seed);
+    dsfmt_init_gen_rand(&R_rstate, seed);
+
+    for (i = 0; i < NEDR-1; i++) der[i] = R_er[i] - R_er[i+1];
+    for (i = 0; i < NEDS-1; i++) des[i] = R_es[i] - R_es[i+1];
 
     init_tabs(subr, R, NSGFER);
     init_tabs(subs, S, NSGFES);
@@ -34,7 +39,7 @@ void R_init_replica(rep_t *p)
     int j;
 
     p->en = (double) NSGS;
-    for (j = 0; j < NSGR; j++) p->nb[j] = nedr;
+    for (j = 0; j < NSGR; j++) p->nb[j] = NEDR;
     for (j = 0; j < NSGS; j++) p->nr[j] = 0;
     for (j = 0; j < NED; j++) p->sp[j] = 1;
 }
@@ -103,26 +108,26 @@ void R_randomize(rep_t *p, int imask)
     }
 }
 
-double er[] = {1., 0, 0, 0, 0, 0};
-double es[] = {1., 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-
 double R_flip_energy(rep_t *p, int edge)
 {
     double en = 0.;
-    int isub, sub, sp = p->sp[edge];
+    int isub;
     int *nr = p->nr;
     int *nb = p->nb;
 
-    for (isub = 0; isub < NSGFER; isub++)
+    if (p->sp[edge] == 1)
     {
-        sub = subr[edge][isub];
-        en += er[nb[sub]-sp] - er[nb[sub]];
+        for (isub = 0; isub < NSGFER; isub++)
+            en += der[nb[subr[edge][isub]]-1];
+        for (isub = 0; isub < NSGFES; isub++)
+            en -= des[nr[subs[edge][isub]]];
     }
-
-    for (isub = 0; isub < NSGFES; isub++)
+    else
     {
-        sub = subs[edge][isub];
-        en += es[nr[sub]+sp] - es[nr[sub]];
+        for (isub = 0; isub < NSGFER; isub++)
+            en -= der[nb[subr[edge][isub]]];
+        for (isub = 0; isub < NSGFES; isub++)
+            en += des[nr[subs[edge][isub]]-1];
     }
 
     return en;

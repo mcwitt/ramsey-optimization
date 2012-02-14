@@ -20,6 +20,9 @@
 rep_t r;
 double e_demon;
 
+double R_er[] = {1., 0, 0, 0, 0, 0};
+double R_es[] = {1., 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
 void print_header()
 {
     printf("# %3s %8s %8s %12s %12s %8s %10s %12s %8s\n",
