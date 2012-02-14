@@ -22,7 +22,7 @@
 #error Please change definitions so that R < S.
 #endif
 
-#define R_RAND() dsfmt_genrand_close_open(&rng_state)
+#define R_RAND() dsfmt_genrand_close_open(&R_rstate)
         
 /* Strucure to store the configuration of one replica */
 typedef struct
@@ -34,7 +34,9 @@ typedef struct
     double en;      /* number of blue S-cliques and red R-cliques */
 } rep_t;
 
-extern dsfmt_t rng_state;   /* state of random number generator (RNG) */
+extern dsfmt_t R_rstate;    /* state of random number generator (RNG) */
+extern double R_er[];       /* energies of R-subgraphs by number of blue edges */
+extern double R_es[];       /* energies of S-subgraphs by number of red edges */
 
 /* Call R_init() first, and R_finalize() to free memory when done */
 void R_init(uint32_t seed);

@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include "ramsey3.h"
 
-dsfmt_t rng_state;
+dsfmt_t R_rstate;
 
 /* subs[ei] (subr[ei]) lists the NSGFES (NSGFER) complete S-subgraphs
  * (R-subgraphs) that include edge ei */
@@ -12,6 +12,9 @@ int *subs[NED];
 int *edgr[NSGR];
 int *edgs[NSGS];
 
+double der[NEDR-1]; /* der[i] = R_er[i] - R_er[i+1] */
+double des[NEDS-1];
+
 int nedr = R*(R-1)/2;       /* number of edges in an R-subgraph */
 int neds = S*(S-1)/2;       /* number of edges in an S-subgraph */
 
@@ -21,7 +24,10 @@ void free_tabs(int *sub[], int *edg[], int nsg);
 void R_init(uint32_t seed)
 {
     /* init random number generator */
-    dsfmt_init_gen_rand(&rng_state, seed);
+    dsfmt_init_gen_rand(&R_rstate, seed);
+
+    for (i = 0; i < NEDR-1; i++) der[i] = R_er[i] - R_er[i+1];
+    for (i = 0; i < NEDS-1; i++) des[i] = R_es[i] - R_es[i+1];
 
     init_tabs(subr, edgr, R, NSGFER, nedr);
     init_tabs(subs, edgs, S, NSGFES, neds);
@@ -110,9 +116,6 @@ void R_randomize(rep_t *p, int imask)
     }
 }
 
-double er[] = {1., 0, 0, 0, 0, 0};
-double es[] = {1., 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-
 void R_flip(rep_t *p, int edge)
 {
     double dhr, dhb;
@@ -129,8 +132,8 @@ void R_flip(rep_t *p, int edge)
         {
             sg = subr[edge][isub];
             nb[sg] += 1;
-            dhr = er[nb[sg]] - er[nb[sg]-1];
-            dhb = er[nb[sg]-1] - er[nb[sg]-2];
+            dhr = R_er[nb[sg]] - R_er[nb[sg]-1];
+            dhb = R_er[nb[sg]-1] - R_er[nb[sg]-2];
             edges = edgr[subr[edge][isub]];
 
             for (iedge = 0; iedge < nedr; iedge++) if (edges[iedge] != edge)
@@ -141,8 +144,8 @@ void R_flip(rep_t *p, int edge)
         {
             sg = subs[edge][isub];
             nr[sg] -= 1;
-            dhr = es[nr[sg]-1] - es[nr[sg]];
-            dhb = es[nr[sg]] - es[nr[sg]+1];
+            dhr = R_es[nr[sg]-1] - R_es[nr[sg]];
+            dhb = R_es[nr[sg]] - R_es[nr[sg]+1];
             edges = edgs[subs[edge][isub]];
 
             for (iedge = 0; iedge < neds; iedge++) if (edges[iedge] != edge)
@@ -155,8 +158,8 @@ void R_flip(rep_t *p, int edge)
         {
             sg = subr[edge][isub];
             nb[sg] -= 1;
-            dhr = er[nb[sg]] - er[nb[sg]+1];
-            dhb = er[nb[sg]-1] - er[nb[sg]];
+            dhr = R_er[nb[sg]] - R_er[nb[sg]+1];
+            dhb = R_er[nb[sg]-1] - R_er[nb[sg]];
             edges = edgr[subr[edge][isub]];
 
             for (iedge = 0; iedge < nedr; iedge++) if (edges[iedge] != edge)
@@ -167,8 +170,8 @@ void R_flip(rep_t *p, int edge)
         {
             sg = subs[edge][isub];
             nr[sg] += 1;
-            dhr = es[nr[sg]-1] - es[nr[sg]-2];
-            dhb = es[nr[sg]] - es[nr[sg]-1];
+            dhr = R_es[nr[sg]-1] - R_es[nr[sg]-2];
+            dhb = R_es[nr[sg]] - R_es[nr[sg]-1];
             edges = edgs[subs[edge][isub]];
 
             for (iedge = 0; iedge < neds; iedge++) if (edges[iedge] != edge)

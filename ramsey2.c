@@ -7,12 +7,15 @@ dsfmt_t R_rstate;
  * (R-subgraphs) that include edge ei */
 int *subr[NED];
 int *subs[NED];
- 
-void init_tabs(int *sub[], int t, int nsgfe);
-void free_tabs(int *sub[]);
 
+double R_er[NEDR];
+double R_es[NEDS];
+ 
 double der[NEDR-1]; /* der[i] = R_er[i] - R_er[i+1] */
 double des[NEDS-1];
+
+void init_tabs(int *sub[], int t, int nsgfe);
+void free_tabs(int *sub[]);
 
 void R_init(uint32_t seed)
 {
@@ -140,6 +143,26 @@ void R_update(rep_t *p, int edge)
 
     for (isub = 0; isub < NSGFER; isub++) p->nb[subr[edge][isub]] += sp;
     for (isub = 0; isub < NSGFES; isub++) p->nr[subs[edge][isub]] -= sp;
+}
+
+void R_update_energy(rep_t *p)
+{
+    int j;
+
+    for (j = 0; j < NEDR-1; j++) der[j] = R_er[j] - R_er[j+1];
+    for (j = 0; j < NEDS-1; j++) des[j] = R_es[j] - R_es[j+1];
+
+    p->en = (double) NSGS;
+    for (j = 0; j < NSGR; j++) p->nb[j] = NEDR;
+    for (j = 0; j < NSGS; j++) p->nr[j] = 0;
+
+    for (j = 0; j < NED; j++) if (p->sp[j] == -1)
+    {
+        p->sp[j] = 1;   /* hack */
+        p->en += R_flip_energy(p, j);
+        p->sp[j] = -1;   /* hack */
+        R_update(p, j);
+    }
 }
 
 void R_save_graph(int sp[NED], char filename[])

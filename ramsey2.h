@@ -25,7 +25,7 @@
 #define NEDR R*(R-1)/2  /* number of edges in an R-subgraph */
 #define NEDS S*(S-1)/2  /* number of edges in an S-subgraph */
 #define R_RAND() dsfmt_genrand_close_open(&R_rstate)
-        
+
 /* Strucure to store the configuration of one replica */
 typedef struct
 {
@@ -68,6 +68,9 @@ double R_flip_energy(rep_t *p, int edge);
 
 /* Must be called after each single spin flip to update state variables */
 void R_update(rep_t *p, int edge);
+
+/* Must be called after each change of R_er or R_es */
+void R_update_energy(rep_t *p);
 
 /* Save graph to file */
 void R_save_graph(int sp[], char filename[]);
