@@ -38,8 +38,6 @@ typedef struct
 } rep_t;
 
 extern dsfmt_t R_rstate;    /* state of random number generator (RNG) */
-extern double R_er[];       /* energies of R-subgraphs by number of blue edges */
-extern double R_es[];       /* energies of S-subgraphs by number of red edges */
 
 /* Call R_init() first, and R_finalize() to free memory when done */
 void R_init(uint32_t seed);
@@ -49,21 +47,15 @@ void R_finalize();
 void R_init_replica(rep_t *p);  
 
 /*
- * Initialize replica in a random configuration with equal numbers of red and
- * blue edges on average
- */
-void R_init_replica_random(rep_t *p);
-
-/*
  * Initialize replica using configuration from a graph file. If the file
- * specifies a graph with fewer than NV vertices, initialize the unspecified
- * edges randomly with equal probabilities for red and blue. Returns the number
- * of edges that were initialized with random values.
+ * specifies a graph with fewer than NV vertices, the unspecified edges will be
+ * blue. Returns the number of unspecified edges (this number can be passed as
+ * imask to R_randomize to randomize just the unspecified edges).
  */
 int R_init_replica_from_file(rep_t *p, char filename[]);
 
 /* Randomize spins with indices less than imask */
-void R_randomize(rep_t *p, int imask);
+void R_randomize(rep_t *p, double p_red, int imask);
 
 /* Compute the energy to flip a spin */
 double R_flip_energy(rep_t *p, int edge);

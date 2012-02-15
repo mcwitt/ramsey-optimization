@@ -41,12 +41,6 @@ void R_init_replica(rep_t *p)
     p->en = (double) NSGS;
 }
 
-void R_init_replica_random(rep_t *p)
-{
-    R_init_replica(p);
-    R_randomize(p, NED);
-}
-
 int R_init_replica_from_file(rep_t *p, char filename[])
 {
     FILE *fp;
@@ -69,7 +63,6 @@ int R_init_replica_from_file(rep_t *p, char filename[])
     ned = ned*(ned-1)/2;
     imask = NED - ned;      /* number of spins unspecified by input */
     assert(imask >= 0);
-    R_randomize(p, imask);  /* randomize unspecified spins */
 
     /* read remaining spins from input */
     j = imask;
@@ -90,13 +83,13 @@ int R_init_replica_from_file(rep_t *p, char filename[])
     return imask;
 }
 
-void R_randomize(rep_t *p, int imask)
+void R_randomize(rep_t *p, double p_red, int imask)
 {
     int j;
 
     for (j = 0; j < imask; j++)
     {
-        if (R_RAND() < 0.5)
+        if (R_RAND() < p_red)
         {
             p->en += R_flip_energy(p, j);
             p->sp[j] *= -1;

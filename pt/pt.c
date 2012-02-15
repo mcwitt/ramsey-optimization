@@ -165,9 +165,11 @@ int main(int argc, char *argv[])
         for (iT = 0; iT < nT; iT++)
             reps[iT] = reps[0];
     }
-    else
-        for (iT = 0; iT < nT; iT++)
-            R_init_replica_random(&reps[iT]);
+    else for (iT = 0; iT < nT; iT++)
+    {
+        R_init_replica(&reps[iT]);
+        R_randomize(&reps[iT], (double) R/(R+S), NED);
+    }
 
     for (iT = 0; iT < nT; iT++)
     {
