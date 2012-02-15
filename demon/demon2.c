@@ -14,23 +14,28 @@
 #include <stdio.h>
 #include "ramsey2.h"
 
-#define WRITE_MAX 10.  /* only save graph when energy is below this value */
+#define WRITE_MAX 500.  /* only save graph when energy is below this value */
 #define NRUN_MAX 100
 
 rep_t r;
 double e_demon;
 
-double er_ini[] = {1., 0.8, 0.6, 0.4, 0.2, 0};
-double es_ini[] = {
-    1.00, 0.93, 0.87, 0.80, 0.73, 0.67, 0.60, 0.53, 0.47, 0.40,
-    0.33, 0.27, 0.20, 0.13, 0.07, 0.00
-};
-
-/*double er_ini[] = {1., 0., 0., 0., 0., 0};
-double es_ini[] = {
+#ifdef DEBUG
+#warning DEBUG MODE
+double er[] = {1., 0., 0., 0., 0., 0., 0.};
+double es[] = {
     1., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
-    0., 0., 0., 0., 0.
-};*/
+    0., 0., 0., 0., 0., 0.
+};
+#else
+double er[] = {
+    1.00,  0.83,  0.67,  0.50,  0.33,  0.17,  0.00
+};
+double es[] = {
+    1.00,  0.93,  0.87,  0.80,  0.73,  0.67,  0.60,  0.53,  0.47,  0.40,  0.33,
+    0.27,  0.20,  0.13,  0.07,  0.00
+};
+#endif
 
 void print_header()
 {
@@ -68,9 +73,9 @@ int main(int argc, char *argv[])
     int nsweep_ini, nstage, nrun;
     double emax_demon_ini, sweep_mult;
 
-    int i, imask, irun, istage, isweep;
+    int imask, irun, istage, isweep, j;
     int nsweep, nflip, nflip_sweep = 0;
-    double emax_demon, e_demon_av, emin, emin_stage, a;
+    double emax_demon, e_demon_av, emin, emin_stage, e_mult;
     uint32_t seed;
 
     if (argc != 7 && argc != 8)
@@ -111,38 +116,28 @@ int main(int argc, char *argv[])
     /* BEGIN SIMULATION */
     emin = 10e9;
 
-#ifdef DEBUG
-#warning DEBUG MODE
-    R_er[0] = R_es[0] = 1;
-    for (i = 0; i < NEDR; i++) R_er[i] = 0;
-    for (i = 0; i < NEDS; i++) R_es[i] = 0;
-#endif
-
     for (irun = 0; irun < nrun; irun++)
     {
         print_header();
         R_randomize(&r, imask);   /* randomize free spins */
         nsweep = nsweep_ini;
         e_demon = emax_demon = emax_demon_ini;
-        for (i = 1; i < NEDR; i++) R_er[i] = er_ini[i];
-        for (i = 1; i < NEDS; i++) R_es[i] = es_ini[i];
+        R_set_energies(&r, er, es);
 
         for (istage = 0; istage < nstage; istage++)
         {
             nflip = 0;
             e_demon_av = 0.;
             emin_stage = 10e9;
-            a = 1. - istage/(nstage-1.);
+            e_mult = 1. - istage/(nstage-1.);
 #ifdef DEBUG
-            emax_demon = (int) (emax_demon * a);
+            emax_demon = (int) (emax_demon * e_mult);
 #else
-            emax_demon *= a;
-            /*for (i = 0; i < NEDR; i++) R_er[i] = pow(er_ini[i], 10./a/a);
-            for (i = 0; i < NEDS; i++) R_es[i] = pow(es_ini[i], 10./a/a);*/
-            for (i = 1; i < NEDR; i++) R_er[i] *= a;
-            for (i = 1; i < NEDS; i++) R_es[i] *= a;
-            for (i = 0; i < NEDR; i++) printf("%f\n",pow(er_ini[i], 10./a/a));
-            R_update_energy(&r);
+            emax_demon *= e_mult;
+            for (j = 1; j < NEDR+1; j++) er[j] *= e_mult;
+            for (j = 1; j < NEDS+1; j++) es[j] *= e_mult;
+            /*for (j = 0; j < NEDR+1; j++) printf("%f\n",er[j]);*/
+            R_set_energies(&r, er, es);
 #endif
 
             for (isweep = 0; isweep < nsweep; isweep++)
@@ -171,7 +166,7 @@ int main(int argc, char *argv[])
 
             /* print stats */
             printf("%5d %8d %8d %12.2f %12.2f %8.5f %10.2f %12.2f %8.2f\n",
-                    irun, istage, nsweep, emax_demon,
+                    irun, istage, isweep, emax_demon,
                     (double) e_demon_av/(isweep+1),
                     (double) nflip/NED/(isweep+1),
                     (double) nflip/NED,

@@ -30,9 +30,11 @@
 typedef struct
 {
     int sp[NED];
-    int nb[NSGR];   /* number of blue edges in each R-subgraph */
-    int nr[NSGS];   /* number of red edges in each S-subgraph */
-    double en;      /* number of blue S-cliques and red R-cliques */
+    int nb[NSGR];       /* number of blue edges in each R-subgraph */
+    int nr[NSGS];       /* number of red edges in each S-subgraph */
+    double der[NEDR];   /* der[i] = er[i] - er[i+1] */
+    double des[NEDS];
+    double en;          /* number of blue S-cliques and red R-cliques */
 } rep_t;
 
 extern dsfmt_t R_rstate;    /* state of random number generator (RNG) */
@@ -69,8 +71,11 @@ double R_flip_energy(rep_t *p, int edge);
 /* Must be called after each single spin flip to update state variables */
 void R_update(rep_t *p, int edge);
 
-/* Must be called after each change of R_er or R_es */
-void R_update_energy(rep_t *p);
+/* 
+ * Set subgraph energy levels. er is an array of energy levels for the
+ * R-subgraphs, er[i] being the energy with i blue edges.
+ */
+void R_set_energies(rep_t *p, double er[NEDR+1], double es[NEDS+1]);
 
 /* Save graph to file */
 void R_save_graph(int sp[], char filename[]);

@@ -8,24 +8,13 @@ dsfmt_t R_rstate;
 int *subr[NED];
 int *subs[NED];
 
-double R_er[NEDR];
-double R_es[NEDS];
- 
-double der[NEDR-1]; /* der[i] = R_er[i] - R_er[i+1] */
-double des[NEDS-1];
-
 void init_tabs(int *sub[], int t, int nsgfe);
 void free_tabs(int *sub[]);
 
 void R_init(uint32_t seed)
 {
-    int i;
-
     /* init random number generator */
     dsfmt_init_gen_rand(&R_rstate, seed);
-
-    for (i = 0; i < NEDR-1; i++) der[i] = R_er[i] - R_er[i+1];
-    for (i = 0; i < NEDS-1; i++) des[i] = R_es[i] - R_es[i+1];
 
     init_tabs(subr, R, NSGFER);
     init_tabs(subs, S, NSGFES);
@@ -41,10 +30,15 @@ void R_init_replica(rep_t *p)
 {
     int j;
 
-    p->en = (double) NSGS;
     for (j = 0; j < NSGR; j++) p->nb[j] = NEDR;
     for (j = 0; j < NSGS; j++) p->nr[j] = 0;
     for (j = 0; j < NED; j++) p->sp[j] = 1;
+
+    p->der[0] = p->des[0] = 1.;
+    for (j = 1; j < NEDR; j++) p->der[j] = 0.;
+    for (j = 1; j < NEDS; j++) p->des[j] = 0.;
+
+    p->en = (double) NSGS;
 }
 
 void R_init_replica_random(rep_t *p)
@@ -115,21 +109,29 @@ double R_flip_energy(rep_t *p, int edge)
 {
     double en = 0.;
     int isub;
+    double *der = p->der;
+    double *des = p->des;
     int *nr = p->nr;
     int *nb = p->nb;
 
     if (p->sp[edge] == 1)
     {
         for (isub = 0; isub < NSGFER; isub++)
+        {
             en += der[nb[subr[edge][isub]]-1];
-        for (isub = 0; isub < NSGFES; isub++)
+            en -= des[nr[subs[edge][isub]]];
+        }
+        for (; isub < NSGFES; isub++)
             en -= des[nr[subs[edge][isub]]];
     }
     else
     {
         for (isub = 0; isub < NSGFER; isub++)
+        {
             en -= der[nb[subr[edge][isub]]];
-        for (isub = 0; isub < NSGFES; isub++)
+            en += des[nr[subs[edge][isub]]-1];
+        }
+        for (; isub < NSGFES; isub++)
             en += des[nr[subs[edge][isub]]-1];
     }
 
@@ -141,16 +143,21 @@ void R_update(rep_t *p, int edge)
     int isub;
     int sp = p->sp[edge];
 
-    for (isub = 0; isub < NSGFER; isub++) p->nb[subr[edge][isub]] += sp;
-    for (isub = 0; isub < NSGFES; isub++) p->nr[subs[edge][isub]] -= sp;
+    for (isub = 0; isub < NSGFER; isub++)
+    {
+        p->nb[subr[edge][isub]] += sp;
+        p->nr[subs[edge][isub]] -= sp;
+    }
+    for (; isub < NSGFES; isub++)
+        p->nr[subs[edge][isub]] -= sp;
 }
 
-void R_update_energy(rep_t *p)
+void R_set_energies(rep_t *p, double er[], double es[])
 {
     int j;
 
-    for (j = 0; j < NEDR-1; j++) der[j] = R_er[j] - R_er[j+1];
-    for (j = 0; j < NEDS-1; j++) des[j] = R_es[j] - R_es[j+1];
+    for (j = 0; j < NEDR; j++) p->der[j] = er[j] - er[j+1];
+    for (j = 0; j < NEDS; j++) p->des[j] = es[j] - es[j+1];
 
     p->en = (double) NSGS;
     for (j = 0; j < NSGR; j++) p->nb[j] = NEDR;
@@ -158,9 +165,12 @@ void R_update_energy(rep_t *p)
 
     for (j = 0; j < NED; j++) if (p->sp[j] == -1)
     {
-        p->sp[j] = 1;   /* hack */
+        /* want energy relative to graph with all edges blue, so need to
+         * temporarily set edge to blue to compute the correct energy */
+        p->sp[j] = 1;
         p->en += R_flip_energy(p, j);
-        p->sp[j] = -1;   /* hack */
+        p->sp[j] = -1;
+
         R_update(p, j);
     }
 }
