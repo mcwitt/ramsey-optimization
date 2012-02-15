@@ -99,7 +99,7 @@ int main(int argc, char *argv[])
     for (irun = 0; irun < nrun; irun++)
     {
         print_header();
-        R_randomize(&r, imask);   /* randomize free spins */
+        R_randomize(&r, (double) R/(R+S), imask);   /* randomize free spins */
         nsweep = nsweep_ini;
         e_demon = emax_demon = emax_demon_ini;
 
