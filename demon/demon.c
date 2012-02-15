@@ -84,7 +84,7 @@ int main(int argc, char *argv[])
          * iteration
          */
 
-        imask = R_init_replica_from_file(&r, argv[4]);
+        imask = R_init_replica_from_file(&r, argv[7]);
         assert(imask > 0);
     }
     else
