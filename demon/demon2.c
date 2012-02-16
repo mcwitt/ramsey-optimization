@@ -139,7 +139,7 @@ int main(int argc, char *argv[])
 #else
             emax_demon *= e_mult;
             for (j = 1; j < NEDR+1; j++) er[j] *= e_mult;
-            for (j = 1; j < NEDR+1; j++) es[j] *= e_mult;
+            for (j = 1; j < NEDS+1; j++) es[j] *= e_mult;
             /*for (j = 0; j < NEDR+1; j++) printf("%f\n",er[j]);*/
             R_set_energies(&r, er, es);
 #endif
