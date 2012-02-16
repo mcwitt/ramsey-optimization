@@ -185,7 +185,7 @@ void R_save_graph(int sp[NED], char filename[])
 void init_tabs(int *sub[], int t, int nsgfe)
 {
     int ps[NED];    /* current positions in subgraph arrays */
-    int c[t+2];     /* array of vertices of the current subgraph */
+    int c[S+2];     /* array of vertices of the current subgraph */
     int ei, si;     /* edge index, subgraph index */
     int j, k;
 

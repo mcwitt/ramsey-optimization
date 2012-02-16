@@ -208,7 +208,7 @@ void init_tabs(int *sub[], int *edg[], int t, int nsgfe, int nedrs)
 {
     int ps[NED];    /* current positions in subgraph arrays */
     int pe;         /* current position in edge array */
-    int c[t+2];     /* array of vertices of the current subgraph */
+    int c[S+2];     /* array of vertices of the current subgraph */
     int ei, si;     /* edge index, subgraph index */
     int j, k;
 
