@@ -2,7 +2,7 @@ dsfmt_dir = $(HOME)/local/src/dSFMT-src-2.1
 dsfmt_flags = -I$(dsfmt_dir) -DDSFMT_MEXP=2203 -DHAVE_SSE2
 
 VPATH = pt:demon:$(dsfmt_dir)
-CFLAGS = -Wall -std=gnu99 -O3 $(dsfmt_flags) -I. #-I$(dsfmt_dir)
+CFLAGS = -Wall -std=gnu99 -O3 $(dsfmt_flags)
 OBJECTS = dSFMT.o ramsey.o ramsey2.o
 
 all: pt.out demon.out demon2.out
