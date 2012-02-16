@@ -13,6 +13,7 @@
 #include <math.h>
 #include <stdio.h>
 #include "ramsey2.h"
+/*#include "debug_energy.c"*/
 
 #define WRITE_MAX 500.  /* only save graph when energy is below this value */
 #define NRUN_MAX 100
@@ -150,6 +151,13 @@ int main(int argc, char *argv[])
             for (isweep = 0; isweep < nsweep; isweep++)
             {
                 nflip_sweep = sweep(emax_demon);
+
+                /* DEBUG
+                double den = debug_energy(r.sp, er, es);
+                printf("%f \t %f\n", r.en, den);
+                assert(abs(r.en == den)<10e6);
+                end DEBUG */
+
                 e_demon_av += e_demon;
                 if (nflip_sweep == 0) break;
                 nflip += nflip_sweep;
