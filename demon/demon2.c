@@ -22,18 +22,18 @@ double e_demon;
 
 #ifdef DEBUG
 #warning DEBUG MODE
-double er[] = {1., 0., 0., 0., 0., 0., 0.};
-double es[] = {
+double er_ini[] = {1., 0., 0., 0., 0., 0., 0.};
+double es_ini[] = {
     1., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
     0., 0., 0., 0., 0., 0.
 };
 #else
-double er[] = {
-    1.00,  0.83,  0.67,  0.50,  0.33,  0.17,  0.00
+double er_ini[] = {
+    1.00, 0.83, 0.67, 0.50, 0.33, 0.17, 0.00
 };
-double es[] = {
-    1.00,  0.93,  0.87,  0.80,  0.73,  0.67,  0.60,  0.53,  0.47,  0.40,  0.33,
-    0.27,  0.20,  0.13,  0.07,  0.00
+double es_ini[] = {
+    1.00, 0.93, 0.87, 0.80, 0.73, 0.67, 0.60, 0.53, 0.47, 0.40, 0.33,
+    0.27, 0.20, 0.13, 0.07, 0.00
 };
 #endif
 
@@ -70,6 +70,7 @@ void sweep(int emax_demon, int *nflip)
 int main(int argc, char *argv[])
 {
     char filename[256];
+    double er[NEDR+1], es[NEDS+1];
     int nsweep_ini, nstage, nrun;
     double emax_demon_ini, sweep_mult;
 
@@ -122,6 +123,9 @@ int main(int argc, char *argv[])
         R_randomize(&r, (double) R/(R+S), imask);   /* randomize free spins */
         nsweep = nsweep_ini;
         e_demon = emax_demon = emax_demon_ini;
+
+        for (j = 0; j < NEDR+1; j++) er[j] = er_ini[j];
+        for (j = 0; j < NEDS+1; j++) es[j] = es_ini[j];
         R_set_energies(&r, er, es);
 
         for (istage = 0; istage < nstage; istage++)
@@ -135,7 +139,7 @@ int main(int argc, char *argv[])
 #else
             emax_demon *= e_mult;
             for (j = 1; j < NEDR+1; j++) er[j] *= e_mult;
-            for (j = 1; j < NEDS+1; j++) es[j] *= e_mult;
+            for (j = 1; j < NEDR+1; j++) es[j] *= e_mult;
             /*for (j = 0; j < NEDR+1; j++) printf("%f\n",er[j]);*/
             R_set_energies(&r, er, es);
 #endif
