@@ -132,6 +132,7 @@ int main(int argc, char *argv[])
     {
         fprintf(stderr, "Usage: %s T_file max_sweeps"
                " seed [initial config]\n", argv[0]);
+        fprintf(stderr, "Compiled for (%d, %d, %d)\n", R, S, NV);
         exit(EXIT_FAILURE);
     }
 

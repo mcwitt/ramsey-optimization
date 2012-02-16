@@ -27,11 +27,9 @@ void print_header()
             "a.r.", "nflip/spin", "emin_stage", "emin");
 }
 
-void sweep(int emax_demon, int *nflip)
+int sweep(int emax_demon)
 {
-    int j, delta;
-
-    *nflip = 0;
+    int j, delta, nflip = 0;
 
     for (j = 0; j < NED; j++)
     {
@@ -43,9 +41,11 @@ void sweep(int emax_demon, int *nflip)
             e_demon -= delta;
             R_flip(&r, j);
             if (e_demon > emax_demon) e_demon = emax_demon;
-            *nflip += 1;
+            nflip += 1;
         }
     }
+
+    return nflip;
 }
 
 int main(int argc, char *argv[])
@@ -61,7 +61,8 @@ int main(int argc, char *argv[])
     if (argc != 7 && argc != 8)
     {
         fprintf(stderr, "Usage: %s emax_demon_ini nsweep_ini sweep_mult"
-                " nstage nrun seed [partial config]\n", argv[0]);
+                " nstage nrun seed [partial_config]\n", argv[0]);
+        fprintf(stderr, "Compiled for (%d, %d, %d)\n", R, S, NV);
         exit(EXIT_FAILURE);
     }
 
@@ -112,7 +113,7 @@ int main(int argc, char *argv[])
 
             for (isweep = 0; isweep < nsweep; isweep++)
             {
-                sweep(emax_demon, &nflip_sweep);
+                nflip_sweep = sweep(emax_demon);
                 e_demon_av += e_demon;
                 if (nflip_sweep == 0) break;
                 nflip += nflip_sweep;

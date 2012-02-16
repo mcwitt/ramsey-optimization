@@ -10,17 +10,8 @@
  *                  (=binomial(NV-2, S-2))
  */
 
+#include "defs.h"
 #include "dSFMT.h"
-
-#if !(  defined(NV)     && defined(R)       && defined(S) &&\
-        defined(NED)    && defined(NSGR)    && defined(NSGS) &&\
-        defined(NSGFER) && defined(NSGFES))
-#error Missing required definitions. See dSFMT.h.
-#endif
-
-#if (R > S)
-#error Please change definitions so that R < S.
-#endif
 
 #define R_RAND() dsfmt_genrand_close_open(&rng_state)
         

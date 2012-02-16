@@ -20,20 +20,23 @@
 rep_t r;
 double e_demon;
 
-#ifdef DEBUG
-#warning DEBUG MODE
+#if defined(LINEAR)
+double er_ini[] = {1.00, 0.83, 0.67, 0.50, 0.33, 0.17, 0.00};
+double es_ini[] = {
+    1.00, 0.93, 0.87, 0.80, 0.73, 0.67, 0.60, 0.53, 0.47, 0.40, 0.33,
+    0.27, 0.20, 0.13, 0.07, 0.00
+};
+#elif defined(QUADRATIC)
+double er_ini[] = {1.00, 0.69, 0.44, 0.25, 0.11, 0.03, 0.00};
+double es_ini[] = {
+    1.00, 0.87, 0.75, 0.64, 0.54, 0.44, 0.36, 0.28, 0.22, 0.16, 0.11, 0.07,
+    0.04, 0.02, 0.00, 0.00 
+};
+#else
 double er_ini[] = {1., 0., 0., 0., 0., 0., 0.};
 double es_ini[] = {
     1., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
     0., 0., 0., 0., 0., 0.
-};
-#else
-double er_ini[] = {
-    1.00, 0.83, 0.67, 0.50, 0.33, 0.17, 0.00
-};
-double es_ini[] = {
-    1.00, 0.93, 0.87, 0.80, 0.73, 0.67, 0.60, 0.53, 0.47, 0.40, 0.33,
-    0.27, 0.20, 0.13, 0.07, 0.00
 };
 #endif
 
@@ -44,12 +47,10 @@ void print_header()
             "a.r.", "nflip/spin", "emin_stage", "emin");
 }
 
-void sweep(int emax_demon, int *nflip)
+int sweep(int emax_demon)
 {
-    int j;
+    int j, nflip = 0;
     double delta;
-
-    *nflip = 0;
 
     for (j = 0; j < NED; j++)
     {
@@ -62,9 +63,11 @@ void sweep(int emax_demon, int *nflip)
             r.sp[j] *= -1;
             R_update(&r, j);
             if (e_demon > emax_demon) e_demon = emax_demon;
-            *nflip += 1;
+            nflip += 1;
         }
     }
+
+    return nflip;
 }
 
 int main(int argc, char *argv[])
@@ -82,7 +85,8 @@ int main(int argc, char *argv[])
     if (argc != 7 && argc != 8)
     {
         fprintf(stderr, "Usage: %s emax_demon_ini nsweep_ini sweep_mult"
-                " nstage nrun seed [partial config]\n", argv[0]);
+                " nstage nrun seed [partial_config]\n", argv[0]);
+        fprintf(stderr, "Compiled for (%d, %d, %d)\n", R, S, NV);
         exit(EXIT_FAILURE);
     }
 
@@ -140,13 +144,12 @@ int main(int argc, char *argv[])
             emax_demon *= e_mult;
             for (j = 1; j < NEDR+1; j++) er[j] *= e_mult;
             for (j = 1; j < NEDS+1; j++) es[j] *= e_mult;
-            /*for (j = 0; j < NEDR+1; j++) printf("%f\n",er[j]);*/
             R_set_energies(&r, er, es);
 #endif
 
             for (isweep = 0; isweep < nsweep; isweep++)
             {
-                sweep(emax_demon, &nflip_sweep);
+                nflip_sweep = sweep(emax_demon);
                 e_demon_av += e_demon;
                 if (nflip_sweep == 0) break;
                 nflip += nflip_sweep;

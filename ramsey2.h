@@ -10,17 +10,8 @@
  *                  (=binomial(NV-2, S-2))
  */
 
+#include "defs.h"
 #include "dSFMT.h"
-
-#if !(  defined(NV)     && defined(R)       && defined(S) &&\
-        defined(NED)    && defined(NSGR)    && defined(NSGS) &&\
-        defined(NSGFER) && defined(NSGFES))
-#error Missing required definitions. See dSFMT.h.
-#endif
-
-#if (R > S)
-#error Please change definitions so that R < S.
-#endif
 
 #define NEDR R*(R-1)/2  /* number of edges in an R-subgraph */
 #define NEDS S*(S-1)/2  /* number of edges in an S-subgraph */
