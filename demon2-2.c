@@ -44,7 +44,7 @@ double es_ini[] = {
 
 void print_header()
 {
-    printf("# %3s %8s %8s %8s %8s %12s %12s %8s %10s %12s %8s\n",
+    printf("# %3s %8s %8s %8s %8s %12s %12s %8s %10s %12s %12s\n",
             "run", "try", "vstage", "dstage", "nsweep", "emax_demon", "e_demon_av",
             "a.r.", "nflip/spin", "emin_try", "emin");
 }
@@ -170,7 +170,7 @@ int main(int argc, char *argv[])
             }
 
             /* print stats */
-            printf("%5d %8d %8d %8d %8d %12.2f %12.2f %8.5f %10.2f %12.2f %8.2f\n",
+            printf("%5d %8d %8d %8d %8d %12.2f %12.2f %8.5f %10.2f %12.2f %12.2f\n",
                     irun, itry, vstage, dstage, isweep, emax_demon,
                     (double) e_demon_av/(isweep+1),
                     (double) nflip/NED/(isweep+1),

@@ -13,7 +13,6 @@
 #include <math.h>
 #include <stdio.h>
 #include "ramsey2.h"
-/*#include "debug_energy.c"*/
 
 #define WRITE_MAX 500.  /* only save graph when energy is below this value */
 #define NRUN_MAX 100
@@ -43,7 +42,7 @@ double es_ini[] = {
 
 void print_header()
 {
-    printf("# %3s %8s %8s %12s %12s %8s %10s %12s %8s\n",
+    printf("# %3s %8s %8s %12s %12s %8s %10s %12s %12s\n",
             "run", "stage", "nsweep", "emax_demon", "e_demon_av",
             "a.r.", "nflip/spin", "emin_stage", "emin");
 }
@@ -152,13 +151,6 @@ int main(int argc, char *argv[])
             for (isweep = 0; isweep < nsweep; isweep++)
             {
                 nflip_sweep = sweep(emax_demon);
-
-                /* DEBUG
-                double den = debug_energy(r.sp, er, es);
-                printf("%f \t %f\n", r.en, den);
-                assert(abs(r.en == den)<10e6);
-                end DEBUG */
-
                 e_demon_av += e_demon;
                 if (nflip_sweep == 0) break;
                 nflip += nflip_sweep;
@@ -181,7 +173,7 @@ int main(int argc, char *argv[])
             }
 
             /* print stats */
-            printf("%5d %8d %8d %12.2f %12.2f %8.5f %10.2f %12.2f %8.2f\n",
+            printf("%5d %8d %8d %12.2f %12.2f %8.5f %10.2f %12.2f %12.2f\n",
                     irun, istage, isweep, emax_demon,
                     (double) e_demon_av/(isweep+1),
                     (double) nflip/NED/(isweep+1),
