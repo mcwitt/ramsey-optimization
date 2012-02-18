@@ -34,6 +34,7 @@ double es_ini[] = {
     0.04, 0.02, 0.00, 0.00 
 };
 #else
+#warning Potential shape not defined. Defaulting to square.
 double er_ini[] = {1., 0., 0., 0., 0., 0., 0.};
 double es_ini[] = {
     1., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
@@ -78,7 +79,8 @@ int main(int argc, char *argv[])
     int nsweep_ini, nrun, nvstage, ndstage;
     double emax_demon_ini, sweep_mult;
 
-    int imask, irun, itry, isweep, j;
+    int mask;
+    int irun, itry, isweep, j;
     int vstage, dstage;
     int nsweep, nflip, nflip_sweep = 0;
     double emax_demon, e_demon_av, emin, emin_try;
@@ -107,18 +109,18 @@ int main(int argc, char *argv[])
     if (argc == 9)
     {
         /*
-         * load configuration from file and set imask to prevent spins
+         * load configuration from file and set mask to prevent spins
          * specified in the input file from being randomized before each
          * iteration
          */
 
-        imask = R_init_replica_from_file(&r, argv[8]);
-        assert(imask > 0);
+        mask = R_init_replica_from_file(&r, argv[8]);
+        assert(mask < NED);
     }
     else
     {
         R_init_replica(&r);
-        imask = NED;
+        mask = 0;
     }
 
     /* BEGIN SIMULATION */
@@ -127,7 +129,7 @@ int main(int argc, char *argv[])
     for (irun = 0; irun < nrun; irun++)
     {
         print_header();
-        R_randomize(&r, (double) R/(R+S), imask);   /* randomize free spins */
+        R_randomize(&r, (double) R/(R+S), mask);   /* randomize free spins */
         nsweep = nsweep_ini;
         e_demon = emax_demon = emax_demon_ini;
         vstage = nvstage;
