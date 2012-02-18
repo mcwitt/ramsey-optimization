@@ -51,7 +51,7 @@ void R_init_replica(rep_t *p)
 int R_init_replica_from_file(rep_t *p, char filename[])
 {
     FILE *fp;
-    int ned, sp, j, imask;
+    int sp, j, ned;
 
     R_init_replica(p);
 
@@ -67,13 +67,9 @@ int R_init_replica_from_file(rep_t *p, char filename[])
         exit(EXIT_FAILURE);
     }
 
-    ned = ned*(ned-1)/2;
-    imask = NED - ned;      /* number of spins unspecified by input */
-    assert(imask >= 0);
+    j = 0;
 
-    /* read remaining spins from input */
-    j = imask;
-    while (fscanf(fp, "%d", &sp) != EOF && j < NED)
+    while ((fscanf(fp, "%d", &sp) != EOF) && (j < NED))
     {
         if (sp == 0)
         {
@@ -85,15 +81,14 @@ int R_init_replica_from_file(rep_t *p, char filename[])
     }
 
     fclose(fp);
-
-    return imask;
+    return j;
 }
 
-void R_randomize(rep_t *p, double p_red, int imask)
+void R_randomize(rep_t *p, double p_red, int mask)
 {
     int j;
 
-    for (j = 0; j < imask; j++)
+    for (j = mask; j < NED; j++)
     {
         if (R_RAND() < p_red)
         {
@@ -204,73 +199,66 @@ void R_save_graph(int sp[NED], char filename[])
     fclose(fp);
 }
 
-void init_tabs(int *sub[], int *edg[], int t, int nsgfe, int nedrs)
+void init_tabs(int *sub[], int *edg[], int t, int nsgfe, int nedt)
 {
-    int ps[NED];    /* current positions in subgraph arrays */
-    int pe;         /* current position in edge array */
-    int c[S+2];     /* array of vertices of the current subgraph */
-    int ei, si;     /* edge index, subgraph index */
+    int nsub[NED];      /* number of subgraphs processed for each edge */
+    int nedg;          /* number of edges of the current subgraph processed */
+    int v[S+2];         /* vertices of the current subgraph */
+    int iedg, isub;    /* edge index, subgraph index */
     int j, k;
 
     for (j = 0; j < NED; j++)
     {
         sub[j] = (int*) malloc(nsgfe * sizeof(int));
-        ps[j] = 0;
+        nsub[j] = 0;
     }
 
     /* 
-     * iterate over all subgraphs with t vertices
-     */
-
-    /*
-     * algorithm to generate combinations adapted from Algorithm L in Knuth's
+     * Iterate over all subgraphs with t vertices (i.e. combinations of t
+     * vertices)
+     *
+     * Algorithm to generate combinations adapted from Algorithm L in Knuth's
      * Art of Computer Programming Vol. 4, Fasc. 3 (all-caps labels
      * correspond to labels in the book)
      */
 
     /* INITIALIZE */
-    si = 0;
-    c[t] = NV;
-    c[t+1] = 0;
-    for (j = 0; j < t; j++) c[j] = j;
+    isub = 0;
+    v[t] = NV;
+    v[t+1] = 0;
+    for (j = 0; j < t; j++) v[j] = j;
 
     while (1)
     {
         /*
-         * VISIT combination c_1 c_2 ... c_t
-         * (algorithm guarantees that c_1 < c_2 < ... < c_t)
+         * VISIT subgraph v_1 v_2 ... v_t
+         * (algorithm guarantees that v_1 < v_2 < ... < v_t)
          */
 
-        edg[si] = (int*) malloc(nedrs * sizeof(int));
-        pe = 0;
+        edg[isub] = (int*) malloc(nedt * sizeof(int));
+        nedg = 0;
 
         /* iterate over edges in this subgraph */
-        for (k = 0; k < t; k++)
+        for (j = 0; j < t; j++)
         {
-            for (j = 0; j < k; j++)
+            for (k = 0; k < j; k++)
             {
-                ei = c[k]*(c[k]-1)/2 + c[j];
-
-                /*
-                 * add subgraph si to list for edge ei
-                 * add edge ei to list for subgraph si
-                 */
-
-                sub[ei][ps[ei]++] = si;
-                edg[si][pe++] = ei;
+                iedg = v[j]*(v[j]-1)/2 + v[k];
+                sub[iedg][nsub[iedg]++] = isub; /* append isub to sub[iedg] */
+                edg[isub][nedg++] = iedg;       /* append iedg to edg[isub] */
             }
         }
 
-        si++;   /* finished with this subgraph, increment label */
+        isub++;   /* increment subgraph label */
 
         /* FIND j */
         j = 0;
-        while (c[j] + 1 == c[j+1]) { c[j] = j; j++; }
+        while (v[j] + 1 == v[j+1]) { v[j] = j; j++; }
 
         /* DONE? */
         if (j == t) break;
 
-        c[j]++;
+        v[j]++;
     }
 }
 

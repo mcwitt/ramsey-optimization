@@ -40,19 +40,20 @@ void R_init_replica(rep_t *p);
 /*
  * Initialize replica using configuration from a graph file. If the file
  * specifies a graph with fewer than NV vertices, the unspecified edges will be
- * blue. Returns the number of unspecified edges (this number can be passed as
- * imask to R_randomize to randomize just the unspecified edges).
+ * blue. Returns the number of spins read from the file (this number can be
+ * passed as the "mask" argument to R_randomize to prevent these spins from
+ * being randomized).
  */
 int R_init_replica_from_file(rep_t *p, char filename[]);
 
-/* Randomize spins with indices less than imask */
-void R_randomize(rep_t *p, double p_red, int imask);
+/* Randomize spins with indices greater than "mask" */
+void R_randomize(rep_t *p, double p_red, int mask);
 
 /* Compute the energy to flip a spin */
-double R_flip_energy(rep_t *p, int edge);
+double R_flip_energy(rep_t *p, int iedge);
 
 /* Must be called after each single spin flip to update state variables */
-void R_update(rep_t *p, int edge);
+void R_update(rep_t *p, int iedge);
 
 /* 
  * Set subgraph energy levels. er is an array of energy levels for the

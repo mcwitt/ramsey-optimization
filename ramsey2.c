@@ -44,7 +44,7 @@ void R_init_replica(rep_t *p)
 int R_init_replica_from_file(rep_t *p, char filename[])
 {
     FILE *fp;
-    int ned, sp, j, imask;
+    int sp, j, ned;
 
     R_init_replica(p);
 
@@ -60,13 +60,9 @@ int R_init_replica_from_file(rep_t *p, char filename[])
         exit(EXIT_FAILURE);
     }
 
-    ned = ned*(ned-1)/2;
-    imask = NED - ned;      /* number of spins unspecified by input */
-    assert(imask >= 0);
+    j = 0;
 
-    /* read remaining spins from input */
-    j = imask;
-    while (fscanf(fp, "%d", &sp) != EOF && j < NED)
+    while ((fscanf(fp, "%d", &sp) != EOF) && (j < NED))
     {
         if (sp == 0)
         {
@@ -79,15 +75,14 @@ int R_init_replica_from_file(rep_t *p, char filename[])
     }
 
     fclose(fp);
-
-    return imask;
+    return j;
 }
 
-void R_randomize(rep_t *p, double p_red, int imask)
+void R_randomize(rep_t *p, double p_red, int mask)
 {
     int j;
 
-    for (j = 0; j < imask; j++)
+    for (j = mask; j < NED; j++)
     {
         if (R_RAND() < p_red)
         {
@@ -98,7 +93,7 @@ void R_randomize(rep_t *p, double p_red, int imask)
     }
 }
 
-double R_flip_energy(rep_t *p, int edge)
+double R_flip_energy(rep_t *p, int iedge)
 {
     double en = 0.;
     int isub;
@@ -107,42 +102,41 @@ double R_flip_energy(rep_t *p, int edge)
     int *nr = p->nr;
     int *nb = p->nb;
 
-    if (p->sp[edge] == 1)
+    if (p->sp[iedge] == 1)
     {
         for (isub = 0; isub < NSGFER; isub++)
         {
-            en += der[nb[subr[edge][isub]]-1];
-            en -= des[nr[subs[edge][isub]]];
+            en += der[nb[subr[iedge][isub]]-1];
+            en -= des[nr[subs[iedge][isub]]];
         }
         for (; isub < NSGFES; isub++)
-            en -= des[nr[subs[edge][isub]]];
+            en -= des[nr[subs[iedge][isub]]];
     }
     else
     {
         for (isub = 0; isub < NSGFER; isub++)
         {
-            en -= der[nb[subr[edge][isub]]];
-            en += des[nr[subs[edge][isub]]-1];
+            en -= der[nb[subr[iedge][isub]]];
+            en += des[nr[subs[iedge][isub]]-1];
         }
         for (; isub < NSGFES; isub++)
-            en += des[nr[subs[edge][isub]]-1];
+            en += des[nr[subs[iedge][isub]]-1];
     }
 
     return en;
 }
 
-void R_update(rep_t *p, int edge)
+void R_update(rep_t *p, int iedge)
 {
-    int isub;
-    int sp = p->sp[edge];
+    int isub, sp = p->sp[iedge];
 
     for (isub = 0; isub < NSGFER; isub++)
     {
-        p->nb[subr[edge][isub]] += sp;
-        p->nr[subs[edge][isub]] -= sp;
+        p->nb[subr[iedge][isub]] += sp;
+        p->nr[subs[iedge][isub]] -= sp;
     }
     for (; isub < NSGFES; isub++)
-        p->nr[subs[edge][isub]] -= sp;
+        p->nr[subs[iedge][isub]] -= sp;
 }
 
 void R_set_energies(rep_t *p, double er[], double es[])

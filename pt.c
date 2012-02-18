@@ -169,7 +169,7 @@ int main(int argc, char *argv[])
     else for (iT = 0; iT < nT; iT++)
     {
         R_init_replica(&reps[iT]);
-        R_randomize(&reps[iT], (double) R/(R+S), NED);
+        R_randomize(&reps[iT], (double) R/(R+S), 0);
     }
 
     for (iT = 0; iT < nT; iT++)

@@ -51,8 +51,9 @@ int sweep(int emax_demon)
 int main(int argc, char *argv[])
 {
     char filename[256];
+    int mask;
     int emax_demon_ini, nsweep_ini, nstage, nrun;
-    int imask, irun, istage, isweep;
+    int irun, istage, isweep;
     int nsweep, nflip, nflip_sweep = 0;
     int emax_demon, e_demon_av, emin, emin_stage;
     double sweep_mult;
@@ -80,18 +81,18 @@ int main(int argc, char *argv[])
     if (argc == 8)
     {
         /*
-         * load configuration from file and set imask to prevent spins
+         * load configuration from file and set mask to prevent spins
          * specified in the input file from being randomized before each
          * iteration
          */
 
-        imask = R_init_replica_from_file(&r, argv[7]);
-        assert(imask > 0);
+        mask = R_init_replica_from_file(&r, argv[7]);
+        assert(mask < NED);
     }
     else
     {
         R_init_replica(&r);
-        imask = NED;
+        mask = 0;
     }
 
     /* BEGIN SIMULATION */
@@ -100,7 +101,7 @@ int main(int argc, char *argv[])
     for (irun = 0; irun < nrun; irun++)
     {
         print_header();
-        R_randomize(&r, (double) R/(R+S), imask);   /* randomize free spins */
+        R_randomize(&r, (double) R/(R+S), mask);   /* randomize free spins */
         nsweep = nsweep_ini;
         e_demon = emax_demon = emax_demon_ini;
 

@@ -4,34 +4,26 @@ sims = pt.out demon.out demon2.out demon2-2.out
 
 VPATH = $(dsfmt_dir)
 CFLAGS = -Wall -std=gnu99 -O3 $(dsfmt_flags)
-OBJECTS = dSFMT.o ramsey.o ramsey2.o
+LDFLAGS = -lm
 
 all: $(sims) energy.out
+
+%.out: %.o
+	$(CC) $^ $(CFLAGS) $(LDFLAGS) -o $@
+
+$(sims): dSFMT.o
 
 defs.h: gendefs.py
 	python gendefs.py
 
 ramsey.o ramsey2.o: defs.h
 
-ramsey.o: ramsey.c ramsey.h
+pt.out: ramsey.o
 
-ramsey2.o: ramsey2.c ramsey2.h
-
-$(sims): dSFMT.o
-
-pt.out: pt.c ramsey.o
-
-demon.out: demon.c ramsey.o
-
-demon2.out: demon2.c ramsey2.o
-	$(CC) $^ $(CFLAGS) -DQUADRATIC -o $@
-
-demon2-2.out: demon2-2.c ramsey2.o
-	$(CC) $^ $(CFLAGS) -DQUADRATIC -o $@
-
-%.out: %.c
-	$(CC) $^ $(CFLAGS) -o $@
+demon.out demon2.out demon2-2.out: CFLAGS := $(CFLAGS) -DQUADRATIC
+demon.out: ramsey.o
+demon2.out: ramsey2.o
+demon2-2.out: ramsey2.o
 
 clean:
-	$(RM) $(OBJECTS)
-	$(RM) defs.h
+	$(RM) defs.h *.o
