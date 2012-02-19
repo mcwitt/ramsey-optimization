@@ -11,6 +11,8 @@ def emin_stage_plot(data, fmt='r-o', label=None):
         stats = [('emin', np.mean, 'emin_avg'), ('emin', err, 'emin_err')]
     )
     plt.errorbar(r.dmax, r.emin_avg, r.emin_err, fmt=fmt, label=label)
+    plt.xlabel('$D_{max}$')
+    plt.ylabel(r'$\langle E \rangle$')
     plt.legend(loc='upper left')
     return r
 
@@ -23,6 +25,9 @@ def emin_run_hist(data, fmt='r-o', label=None):
     counts, bins = np.histogram(r.emin_run,
             bins=range(min(r.emin_run), max(r.emin_run)))
     plt.plot(bins[:-1], counts, fmt, label=label)
+    plt.xlabel('$E_{min}$')
+    plt.ylabel('count')
+    plt.legend(loc='upper left')
     return bins[:-1], counts
 
 if __name__=='__main__':

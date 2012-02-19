@@ -14,7 +14,7 @@ all: $(sims) energy.out
 $(sims): dSFMT.o
 
 defs.h: gendefs.py
-	python gendefs.py
+	python gendefs.py $R $S $(NV)
 
 ramsey.o ramsey2.o: defs.h
 

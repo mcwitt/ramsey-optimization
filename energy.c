@@ -60,7 +60,7 @@ int main(int argc, char *argv[])
     r = atoi(argv[1]);
     s = atoi(argv[2]);
 
-    printf("# %6s %8s\n", "graph", "energy");
+    printf("# %6s %8s %8s\n", "graph", "nv", "energy");
 
     while (scanf("%d", &nv) > 0)
     {
@@ -78,7 +78,7 @@ int main(int argc, char *argv[])
             if (sp[i] == 0) sp[i] = -1;
         }
 
-        printf("%8d %8d\n", igraph++, energy(sp, nv, r, s));
+        printf("%8d %8d %8d\n", igraph++, nv, energy(sp, nv, r, s));
     }
 
     return EXIT_SUCCESS;
