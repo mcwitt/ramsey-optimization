@@ -3,13 +3,11 @@
  *
  * Author: Matt Wittmann <mwittman@ucsc.edu>
  *
- * Description: Parallel tempering Monte Carlo code which attempts to minimize
- * the number of r-cliques and s-independent sets of a graph given that it has
- * N_v vertices. Energy is defined to be the sum of the number of r-cliques and
- * s-independent sets. If for a given input (r, s, N_v) we find a zero-energy
- * state, this implies that R(r, s) > N_v.
- *
- * To compile, run python compile.py.
+ * Description: Parallel Tempering (PT) Monte Carlo code which attempts to
+ * minimize the number of r-cliques and s-independent sets of a graph given
+ * that it has N_v vertices. Energy is defined to be the sum of the number of
+ * r-cliques and s-independent sets. If for a given input (r, s, N_v) we find a
+ * zero-energy state, this implies that R(r, s) > N_v.
  */
 
 #define MAX_NT      32  /* maximum number of parallel tempering replicas */

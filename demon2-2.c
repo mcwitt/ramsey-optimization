@@ -1,11 +1,10 @@
 /*
- * File: demon.c
+ * File: demon2.c
  *
  * Author: Matt Wittmann <mwittman@ucsc.edu>
  *
- * Description:
- *
- * To compile, run python compile.py.
+ * Description: Soft-energy version of demon.c. In this version the potential
+ * stage is advanced only when the system becomes trapped in a local minimum.
  */
 
 #include <assert.h>

@@ -1,11 +1,9 @@
 /*
- * File: demon.c
+ * File: demon2.c
  *
  * Author: Matt Wittmann <mwittman@ucsc.edu>
  *
- * Description:
- *
- * To compile, run python compile.py.
+ * Description: Soft-energy version of demon.c
  */
 
 #include <assert.h>

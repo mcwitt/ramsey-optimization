@@ -3,9 +3,11 @@
  *
  * Author: Matt Wittmann <mwittman@ucsc.edu>
  *
- * Description:
- *
- * To compile, run python compile.py.
+ * Description: Annealed Demon Algorithm (ADA) Monte Carlo code which attempts
+ * to minimize the number of r-cliques and s-independent sets of a graph given
+ * that it has N_v vertices. Energy is defined to be the sum of the number of
+ * r-cliques and s-independent sets. If for a given input (r, s, N_v) we find a
+ * zero-energy state, this implies that R(r, s) > N_v.
  */
 
 #include <assert.h>
