@@ -1,19 +1,19 @@
 #include <stdio.h>
 #include "ramsey.h"
 
-dsfmt_t rng_state;
+dsfmt_t R_rstate;
 
 /* subs[ei] (subr[ei]) lists the NSGFES (NSGFER) complete S-subgraphs
  * (R-subgraphs) that include edge ei */
 int *subr[NED];
 int *subs[NED];
  
-/* edgs[si] (edgr[si]) lists the edges of S-subgraph (R-subgraph) si */
+/* edgs[isub] (edgr[isub]) lists the edges of S-subgraph (R-subgraph) isub */
 int *edgr[NSGR];
 int *edgs[NSGS];
 
-int nedr = R*(R-1)/2;       /* number of edges in an R-subgraph */
-int neds = S*(S-1)/2;       /* number of edges in an S-subgraph */
+int nedr = R*(R-1)/2;   /* number of edges in an R-subgraph */
+int neds = S*(S-1)/2;   /* number of edges in an S-subgraph */
 
 void init_tabs(int *sub[], int *edg[], int t, int nsgfe, int nedrs);
 void free_tabs(int *sub[], int *edg[], int nsg);
@@ -21,7 +21,7 @@ void free_tabs(int *sub[], int *edg[], int nsg);
 void R_init(uint32_t seed)
 {
     /* init random number generator */
-    dsfmt_init_gen_rand(&rng_state, seed);
+    dsfmt_init_gen_rand(&R_rstate, seed);
 
     init_tabs(subr, edgr, R, NSGFER, nedr);
     init_tabs(subs, edgs, S, NSGFES, neds);
@@ -98,88 +98,103 @@ void R_randomize(rep_t *p, double p_red, int mask)
     }
 }
 
-void R_flip(rep_t *p, int ei)
+void R_flip(rep_t *p, int iedg)
 {
-    int si, j, n;
+    int isub, j, n;
     int *sp = p->sp;
     int *h2 = p->h2;
     int *nr = p->nr;
     int *nb = p->nb;
-    int *e;
+    int *esub;  /* edges of the current subgraph */
 
-    if ((sp[ei] *= -1) == 1)
+    if ((sp[iedg] *= -1) == 1)  /* new spin value is 1 (blue) */
     {
-        for (si = 0; si < NSGFER; si++)
+        /* loop over R-subgraphs (energy +1 if all edges red) */
+        for (isub = 0; isub < NSGFER; isub++)
         {
-            n = nb[subr[ei][si]] += 1;
-            if (n > 2) continue;
-            e = edgr[subr[ei][si]];
+            n = ++nb[subr[iedg][isub]]; /* increment blue edge count */
 
-            if (n == 2) /* destroyed an incomplete red clique */
+            /* If new blue edge count n > 2, flip does not affect the field at
+             * any edge in this subgraph, so continue to next subgraph... */
+            if (n > 2) continue;
+
+            /* set pointer to array of edges in current subgraph isub */
+            esub = edgr[subr[iedg][isub]];
+
+            /* If n = 2, flip destroyed an incomplete red clique (subgraph with
+             * only one blue edge, e). Need to update the field at e since
+             * flipping this spin will no longer create a red clique */
+            if (n == 2)
             {
                 for (j = 0; j < nedr; j++)
-                    if (sp[e[j]] == 1 && e[j] != ei) { h2[e[j]] -= 1; break; }
+                    if (sp[esub[j]] == 1 && esub[j] != iedg)
+                        { --h2[esub[j]]; break; }
             }
-            else        /* (n = 1) destroyed a red clique */
+            /* Otherwise n = 1, so flip destroyed a red clique. Need to update
+             * fields at all spins in the subgraph except iedg since flipping
+             * any of these will no longer destroy a red clique */
+            else
             {
-                h2[ei] += 1;
-                for (j = 0; j < nedr; j++) h2[e[j]] -= 1;
+                ++h2[iedg];
+                for (j = 0; j < nedr; j++) --h2[esub[j]];
             }
         }
 
-        for (si = 0; si < NSGFES; si++)
+        /* loop over S-subgraphs (energy +1 if all edges blue) */
+        for (isub = 0; isub < NSGFES; isub++)
         {
-            n = nr[subs[ei][si]] -= 1;
+            n = --nr[subs[iedg][isub]]; /* decrement blue edge count */
             if (n > 1) continue;
-            e = edgs[subs[ei][si]];
+            esub = edgs[subs[iedg][isub]];
 
             if (n == 1) /* created an incomplete blue clique */
             {
                 for (j = 0; j < neds; j++)
-                    if (sp[e[j]] == -1) { h2[e[j]] -= 1; break; }
+                    if (sp[esub[j]] == -1) { --h2[esub[j]]; break; }
             }
             else        /* (n = 0) created a blue clique */
             {
-                h2[ei] += 1;
-                for (j = 0; j < neds; j++) h2[e[j]] -= 1;
+                ++h2[iedg];
+                for (j = 0; j < neds; j++) --h2[esub[j]];
             }
         }
     }
-    else
+    else    /* new spin value is -1 (red) */
     {
-        for (si = 0; si < NSGFER; si++)
+        for (isub = 0; isub < NSGFER; isub++)
         {
-            n = nb[subr[ei][si]] -= 1;
+            n = --nb[subr[iedg][isub]];
             if (n > 1) continue;
-            e = edgr[subr[ei][si]];
+            esub = edgr[subr[iedg][isub]];
 
             if (n == 1) /* created an incomplete red clique */
             {
                 for (j = 0; j < nedr; j++)
-                    if (sp[e[j]] == 1) { h2[e[j]] += 1; break; }
+                    if (sp[esub[j]] == 1) { ++h2[esub[j]]; break; }
             }
             else        /* (n = 0) created a red clique */
             {
-                h2[ei] -= 1;
-                for (j = 0; j < nedr; j++) h2[e[j]] += 1;
+                --h2[iedg];
+                for (j = 0; j < nedr; j++) ++h2[esub[j]];
             }
         }
 
-        for (si = 0; si < NSGFES; si++)
+        for (isub = 0; isub < NSGFES; isub++)
         {
-            n = nr[subs[ei][si]] += 1;
+            n = ++nr[subs[iedg][isub]];
             if (n > 2) continue;
-            e = edgs[subs[ei][si]];
+            esub = edgs[subs[iedg][isub]];
 
             if (n == 2) /* destroyed an incomplete blue clique */
             {
                 for (j = 0; j < neds; j++)
-                    if (sp[e[j]] == -1 && e[j] != ei) { h2[e[j]] += 1; break; }
+                    if (sp[esub[j]] == -1 && esub[j] != iedg)
+                        { ++h2[esub[j]]; break; }
             }
             else        /* (n = 1) destroyed a blue clique */
             {
-                h2[ei] -= 1;
-                for (j = 0; j < neds; j++) h2[e[j]] += 1;
+                --h2[iedg];
+                for (j = 0; j < neds; j++) ++h2[esub[j]];
             }
         }
     }
@@ -201,10 +216,10 @@ void R_save_graph(int sp[NED], char filename[])
 
 void init_tabs(int *sub[], int *edg[], int t, int nsgfe, int nedt)
 {
-    int nsub[NED];      /* number of subgraphs processed for each edge */
-    int nedg;          /* number of edges of the current subgraph processed */
-    int v[S+2];         /* vertices of the current subgraph */
-    int iedg, isub;    /* edge index, subgraph index */
+    int nsub[NED];  /* number of subgraphs processed for each edge */
+    int nedg;       /* number of edges of the current subgraph processed */
+    int v[S+2];     /* vertices of the current subgraph */
+    int iedg, isub; /* edge and subgraph indices */
     int j, k;
 
     for (j = 0; j < NED; j++)
