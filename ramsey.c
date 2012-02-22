@@ -15,8 +15,8 @@ int *edgs[NSGS];
 int nedr = R*(R-1)/2;   /* number of edges in an R-subgraph */
 int neds = S*(S-1)/2;   /* number of edges in an S-subgraph */
 
-void init_tabs(int *sub[], int *edg[], int t, int nsgfe, int nedrs);
-void free_tabs(int *sub[], int *edg[], int nsg);
+static void init_tabs(int *sub[], int *edg[], int t, int nsgfe, int nedrs);
+static void free_tabs(int *sub[], int *edg[], int nsg);
 
 void R_init(uint32_t seed)
 {
@@ -214,7 +214,7 @@ void R_save_graph(int sp[NED], char filename[])
     fclose(fp);
 }
 
-void init_tabs(int *sub[], int *edg[], int t, int nsgfe, int nedt)
+static void init_tabs(int *sub[], int *edg[], int t, int nsgfe, int nedt)
 {
     int nsub[NED];  /* number of subgraphs processed for each edge */
     int nedg;       /* number of edges of the current subgraph processed */
@@ -277,7 +277,7 @@ void init_tabs(int *sub[], int *edg[], int t, int nsgfe, int nedt)
     }
 }
 
-void free_tabs(int *sub[], int *edg[], int nsg)
+static void free_tabs(int *sub[], int *edg[], int nsg)
 {
     int i;
 

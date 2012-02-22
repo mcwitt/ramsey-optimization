@@ -8,8 +8,8 @@ dsfmt_t R_rstate;
 int *subr[NED];
 int *subs[NED];
 
-void init_tabs(int *sub[], int t, int nsgfe);
-void free_tabs(int *sub[]);
+static void init_tabs(int *sub[], int t, int nsgfe);
+static void free_tabs(int *sub[]);
 
 void R_init(uint32_t seed)
 {
@@ -176,7 +176,7 @@ void R_save_graph(int sp[NED], char filename[])
     fclose(fp);
 }
 
-void init_tabs(int *sub[], int t, int nsgfe)
+static void init_tabs(int *sub[], int t, int nsgfe)
 {
     int ps[NED];    /* current positions in subgraph arrays */
     int c[S+2];     /* array of vertices of the current subgraph */
@@ -241,7 +241,7 @@ void init_tabs(int *sub[], int t, int nsgfe)
     }
 }
 
-void free_tabs(int *sub[])
+static void free_tabs(int *sub[])
 {
     int i;
 

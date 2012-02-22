@@ -48,8 +48,8 @@ double R_flip_energy(rep_t *p, int iedge);
 void R_update(rep_t *p, int iedge);
 
 /* 
- * Set subgraph energy levels. er is an array of energy levels for the
- * R-subgraphs, er[i] being the energy with i blue edges.
+ * Set subgraph energy levels. er[nb] the energy of an R-subgraph with nb blue
+ * edges. Note that this changes the total energy in general.
  */
 void R_set_energies(rep_t *p, double er[NEDR+1], double es[NEDS+1]);
 
