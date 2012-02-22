@@ -22,13 +22,6 @@
 rep_t r;
 int e_demon;
 
-void print_header()
-{
-    printf("# %3s %8s %8s %12s %12s %8s %10s %12s %8s\n",
-            "run", "stage", "nsweep", "emax_demon", "e_demon_av",
-            "a.r.", "nflip/spin", "emin_stage", "emin");
-}
-
 int sweep(int emax_demon)
 {
     int j, delta, nflip = 0;
@@ -104,7 +97,11 @@ int main(int argc, char *argv[])
 
     for (irun = 0; irun < nrun; irun++)
     {
-        print_header();
+        /* print column names */
+        printf("# %3s %8s %8s %12s %12s %8s %10s %12s %8s\n",
+            "run", "stage", "nsweep", "emax_demon", "e_demon_av",
+            "a.r.", "nflip/spin", "emin_stage", "emin");
+
         R_randomize(&r, (double) R/(R+S), mask);   /* randomize free spins */
         nsweep = nsweep_ini;
         e_demon = emax_demon = emax_demon_ini;
