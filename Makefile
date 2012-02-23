@@ -1,6 +1,6 @@
 dsfmt_dir = $(HOME)/local/src/dSFMT-src-2.1
 dsfmt_flags = -I$(dsfmt_dir) -DDSFMT_MEXP=2203 -DHAVE_SSE2
-sims = pt.out demon.out demon2.out demon2-2.out
+sims = pt.out sa.out demon.out demon2.out demon2-2.out
 
 VPATH = $(dsfmt_dir)
 CFLAGS = -Wall -std=gnu99 -O3 $(dsfmt_flags)
@@ -19,6 +19,8 @@ defs.h: gendefs.py
 ramsey.o ramsey2.o: defs.h
 
 pt.out: ramsey.o
+
+sa.out: ramsey.o
 
 demon.out demon2.out demon2-2.out: CFLAGS := $(CFLAGS) -DQUADRATIC
 demon.out: ramsey.o

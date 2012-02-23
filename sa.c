@@ -1,26 +1,25 @@
 /*
- * File: demon.c
+ * File: sa.c
  *
  * Author: Matt Wittmann <mwittman@ucsc.edu>
  *
- * Description: Annealed Demon Algorithm (ADA) Monte Carlo code which attempts
- * to minimize the number of r-cliques and s-independent sets of a graph given
- * that it has N_v vertices. Energy is defined to be the sum of the number of
- * r-cliques and s-independent sets. If for a given input (r, s, N_v) we find a
- * zero-energy state, this implies that R(r, s) > N_v.
+ * Description: Simulated Annealing Monte Carlo code which attempts to minimize
+ * the number of r-cliques and s-independent sets of a graph given that it has
+ * N_v vertices. Energy is defined to be the sum of the number of r-cliques and
+ * s-independent sets. If for a given input (r, s, N_v) we find a zero-energy
+ * state, this implies that R(r, s) > N_v.
  */
 
-#include <assert.h>
 #include <limits.h>
-#include <stdio.h>
+#include <math.h>
 #include "ramsey.h"
 
 #define WRITE_MAX 10  /* only save graph when energy is below this value */
 
 rep_t r;
-int e_demon;
+double T;
 
-int sweep(int emax_demon)
+int sweep()
 {
     int j, delta, nflip = 0;
 
@@ -28,12 +27,10 @@ int sweep(int emax_demon)
     {
         delta = r.sp[j]*r.h2[j];
 
-        if (delta < e_demon)
+        if (delta <= 0 || R_RAND() < exp(-delta/T))
         {
-            r.en += delta;
-            e_demon -= delta;
             R_flip(&r, j);
-            if (e_demon > emax_demon) e_demon = emax_demon;
+            r.en += delta;
             nflip++;
         }
     }
@@ -44,23 +41,23 @@ int sweep(int emax_demon)
 int main(int argc, char *argv[])
 {
     char filename[256];
-    double sweep_mult;
-    int emax_demon_ini, nsweep_ini, nstage, nrun;
+    double T_ini, sweep_mult;
+    int nsweep_ini, nstage, nrun;
     int irun, istage, isweep;
-    int nsweep, nflip, nflip_sweep = 0;
-    int emax_demon, e_demon_av, emin, emin_stage;
+    int nsweep, nflip;
+    int emin, emin_stage;
     int mask;
     uint32_t seed;
 
     if (argc != 7 && argc != 8)
     {
-        fprintf(stderr, "Usage: %s emax_demon_ini nsweep_ini sweep_mult"
+        fprintf(stderr, "Usage: %s T_ini nsweep_ini sweep_mult"
                 " nstage nrun seed [partial_config]\n", argv[0]);
         fprintf(stderr, "Compiled for (%d, %d, %d)\n", R, S, NV);
         exit(EXIT_FAILURE);
     }
 
-    emax_demon_ini = atoi(argv[1]);
+    T_ini = atof(argv[1]);
     nsweep_ini = atoi(argv[2]);
     sweep_mult = atof(argv[3]);
     nstage = atoi(argv[4]);
@@ -96,27 +93,22 @@ int main(int argc, char *argv[])
     for (irun = 0; irun < nrun; irun++)
     {
         /* print column names */
-        printf("# %3s %8s %8s %12s %12s %8s %10s %12s %8s\n",
-            "run", "stage", "nsweep", "emax_demon", "e_demon_av",
-            "a.r.", "nflip/spin", "emin_stage", "emin");
+        printf("# %3s %8s %8s %8s %8s %12s %8s\n",
+            "run", "stage", "nsweep", "T", "a.r.", "emin_stage", "emin");
 
         R_randomize(&r, (double) R/(R+S), mask);   /* randomize free spins */
         nsweep = nsweep_ini;
-        e_demon = emax_demon = emax_demon_ini;
+        T = T_ini;
 
-        for (istage = 0; istage < nstage; istage++)
+        for (istage = nstage; istage >= 0; istage--)
         {
             nflip = 0;
-            e_demon_av = 0;
             emin_stage = INT_MAX;
-            emax_demon = (int) (emax_demon * ( 1. - istage/(nstage-1.) ));
+            T *= (double) istage / nstage;
 
             for (isweep = 0; isweep < nsweep; isweep++)
             {
-                nflip_sweep = sweep(emax_demon);
-                e_demon_av += e_demon;
-                if (nflip_sweep == 0) break;
-                nflip += nflip_sweep;
+                nflip += sweep();
 
                 if (r.en < emin_stage)
                 {
@@ -136,15 +128,13 @@ int main(int argc, char *argv[])
             }
 
             /* print stage stats */
-            printf("%5d %8d %8d %12d %12.2f %8.5f %10.2f %12d %8d\n",
-                    irun, istage, nsweep, emax_demon,
-                    (double) e_demon_av/(isweep+1),
+            printf("%5d %8d %8d %8.5f %8.5f %12d %8d\n",
+                    irun, istage, nsweep, T,
                     (double) nflip/NED/(isweep+1),
-                    (double) nflip/NED,
                     emin_stage, emin);
             fflush(stdout);
 
-            if ((emin == 0) || (nflip_sweep == 0)) break;
+            if (emin == 0) break;
             nsweep *= sweep_mult;
         }
 
