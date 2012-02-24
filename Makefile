@@ -20,9 +20,10 @@ ramsey.o ramsey2.o: defs.h
 
 pt.out: ramsey.o
 
+sa.out: CFLAGS := $(CFLAGS) -DLITTLE_ENDIAN
 sa.out: ramsey.o
 
-demon.out demon2.out demon2-2.out: CFLAGS := $(CFLAGS) -DQUADRATIC
+demon2.out demon2-2.out: CFLAGS := $(CFLAGS) -DQUADRATIC
 demon.out: ramsey.o
 demon2.out: ramsey2.o
 demon2-2.out: ramsey2.o

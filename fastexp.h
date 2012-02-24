@@ -1,7 +1,6 @@
 /* Code taken from Schraudolph paper */
 
 #include <math.h>
-#define LITTLE_ENDIAN
 
 static union
 {

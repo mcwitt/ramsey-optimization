@@ -12,8 +12,10 @@
 
 #include <limits.h>
 #include <math.h>
-#include "fastexp.h"
 #include "ramsey.h"
+
+/*#include "fastexp.h"*/
+#define EXP(x) exp(x)
 
 #define WRITE_MAX 10  /* only save graph when energy is below this value */
 
