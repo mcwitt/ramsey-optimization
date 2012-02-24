@@ -33,15 +33,20 @@ def emin_run_hist(data, fmt='r-o', label=None):
 if __name__=='__main__':
     import sys
 
-    fmts = ['r-o', 'b-s', 'g-v', 'y-^', 'm-p', 'c-x', 'k-D', 'r-s']
+    plt.rc('legend', fontsize=10)
+    markers = ['o', 's', 'v', '^', 'p', 'D']
+    colors = ['r', 'b', 'g', 'y', 'm', 'c', 'k']
     results = {}
+    files = sys.argv[1:]
 
-    for fname, fmt in zip(sys.argv[1:], fmts):
+    for i in xrange(len(files)):
+        fname = files[i]
         results[fname] = {}
 
         data = np.loadtxt(fname, usecols=[0,3,7],
                 dtype=[ ('run', 'i4'), ('dmax','i4'), ('emin','i4') ])
 
+        fmt = '%s-%s' % (colors[i % len(colors)], markers[i % len(markers)])
         plt.figure(1)
         emin_stage = emin_stage_plot(data, fmt, fname)
         plt.figure(2)
