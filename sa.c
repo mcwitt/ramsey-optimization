@@ -12,6 +12,7 @@
 
 #include <limits.h>
 #include <math.h>
+#include "fastexp.h"
 #include "ramsey.h"
 
 #define WRITE_MAX 10  /* only save graph when energy is below this value */
@@ -27,7 +28,7 @@ int sweep()
     {
         delta = r.sp[j]*r.h2[j];
 
-        if (delta <= 0 || R_RAND() < exp(-delta/T))
+        if (delta <= 0 || R_RAND() < EXP(-delta/T))
         {
             R_flip(&r, j);
             r.en += delta;
