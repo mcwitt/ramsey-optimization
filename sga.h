@@ -1,21 +1,33 @@
-#define SGA_POPSIZE 100
+#include "dSFMT.h"
+#include "defs.h"
+
+#define SGA_MAXPOP 100
+
+#define SGA_RANDOM() dsfmt_genrand_close_open(&dsfmt)
+#define SGA_RND(l, u) (u-l)*SGA_RANDOM() + l
+
+extern dsfmt_t dsfmt;
+
+/* application-specific function to be defined in external file */
+double SGA_objfunc(int chrom[]);
 
 typedef struct
 {
-    allele_t chrom[SGA_CHROMLEN];
-    pheno_t pheno;
+    int chrom[SGA_CHROMLEN];
     double fitness;
     int parent1, parent2, xsite;
 } SGA_indiv_t;
 
 typedef struct
 {
+    int npop;
     double pcross;
     double pmutate;
 } SGA_params_t;
 
 typedef struct
 {
+    double fitness_avg, fitness_var, fitness_min, fitness_max;
     int ncross;
     int nmutation;
 } SGA_stats_t;
