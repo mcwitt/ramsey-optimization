@@ -1,11 +1,30 @@
-#define POPSIZE 100
+/* Genetic algorithm based on Goldberg's "Simple Genetic Algorithm" */
+#define MAXPOP      100
+#define MAXSTRING   30
 
-/* select individuals for mating */
-void select(int current[POPSIZE][], int selected[POPSIZE][])
+
+typedef struct
 {
+    int chrom[MAXSTRING];
+    double fitness;
+} individual;
+
+/* find the leftmost insertion point for x in a sorted array */
+int bisect(double a[], double x, int l, int r)
+{
+    int mid;
+
+    while (r-l > 1)
+    {
+        mid = (l+r)/2;
+        if (a[mid] < x) l = mid;
+        else r = mid;
+    }
+
+    return (x < a[l]) ? l : r;
 }
 
-void mate(int selected[POPSIZE][], int next[POPSIZE][])
+void select(individual pop[], int popsize, double sumfitness)
 {
 }
 
