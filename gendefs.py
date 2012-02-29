@@ -18,11 +18,11 @@ params = [
     ('R',       r,                  'red clique size'),
     ('S',       s,                  'blue clique size'),
     ('NV',      nv,                 'number of vertices'),
-    ('NED',     nv*(nv-1)/2,        'number of edges (=NV(NV-1)/2)'),
-    ('NSGR',    choose(nv, r),      'number of subgraphs with R vertices (=binomial(NV, R)'),
-    ('NSGS',    choose(nv, s),      'number of subgraphs with S vertices (=binomial(NV, S)'),
-    ('NSGFER',  choose(nv-2, r-2),  'number of subgraphs with R vertices including a given edge'),
-    ('NSGFES',  choose(nv-2, s-2),  'number of subgraphs with S vertices including a given edge')
+    ('NED',     nv*(nv-1)/2,        'number of edges = NV(NV-1)/2'),
+    ('NSGR',    choose(nv, r),      'number of R-subgraphs = binomial(NV, R)'),
+    ('NSGS',    choose(nv, s),      'number of S-subgraphs = binomial(NV, S)'),
+    ('NSGFER',  choose(nv-2, r-2),  'number of R-subgraphs that use a given edge = binomial(NV-2, R-2)'),
+    ('NSGFES',  choose(nv-2, s-2),  'number of S-subgraphs that use a given edge = binomial(NV-2, S-2)')
 ]
 
 f = open(outfile, 'w')
