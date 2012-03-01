@@ -36,12 +36,11 @@ if __name__=='__main__':
     plt.rc('legend', fontsize=10)
     markers = ['o', 's', 'v', '^', 'p', 'D']
     colors = ['r', 'b', 'g', 'y', 'm', 'c', 'k']
-    results = {}
+    results = [] 
     files = sys.argv[1:]
 
     for i in xrange(len(files)):
         fname = files[i]
-        results[fname] = {}
 
         data = np.loadtxt(fname, usecols=[0,3,7],
                 dtype=[ ('run', 'i4'), ('dmax','i4'), ('emin','i4') ])
@@ -52,8 +51,12 @@ if __name__=='__main__':
         plt.figure(2)
         emin_run = emin_run_hist(data, fmt, fname)
 
-        results[fname]['data'] = data
-        results[fname]['emin_stage'] = emin_stage
-        results[fname]['emin_run'] = emin_run
+        results.append(dict(
+            fname = fname,
+            data = data,
+            emin_stage = emin_stage
+            emin_run = emin_run
+            )
+        )
 
     IPython.embed()
