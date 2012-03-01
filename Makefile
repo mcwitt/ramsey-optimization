@@ -28,11 +28,14 @@ demon.out: ramsey.o
 demon2.out: ramsey2.o
 demon2-2.out: ramsey2.o
 
+genetic.out: CFLAGS := $(CFLAGS) -DSGA_CHROMLEN=NED
+genetic.out: ramsey.o sga.o
+
+# TEST PROGRAMS
 test.o: test.c
 test.out: test.o ramsey.o dSFMT.o
 
-genetic.out: CFLAGS := $(CFLAGS) -DSGA_CHROMLEN=NED
-genetic.out: ramsey.o sga.o
+gtest.out: sga.o dSFMT.o
 
 clean:
 	$(RM) defs.h *.o

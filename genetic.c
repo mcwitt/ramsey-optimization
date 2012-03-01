@@ -1,25 +1,32 @@
-#include "dSFMT.h"
+#include <stdio.h>
 #include "ramsey.h"
 #include "sga.h"
 
-double SGA_objfunc(int chrom[])
+void decode(int chrom[], int sp[])
 {
     int i;
+
+    for (i = 0; i < NED; i++)
+        sp[i] = (chrom[i] == 1) ? 1 : -1;
+}
+
+double SGA_objfunc(int chrom[])
+{
     int sp[NED];
 
-    for (i = 0; i < SGA_CHROMLEN; i++)
-        sp[i] = (chrom[i] == 1) ? 1 : -1;
-
+    decode(chrom, sp);
     return 1./(R_energy(sp)+1);
 }
 
 int main(int argc, char *argv[])
 {
-    SGA_indiv_t b1[SGA_MAXPOP];
-    SGA_indiv_t b2[SGA_MAXPOP];
+    SGA_indiv_t b1[SGA_MAXPOPSIZE];
+    SGA_indiv_t b2[SGA_MAXPOPSIZE];
     SGA_indiv_t *newpop, *oldpop, *swap;
     SGA_params_t params;
     SGA_stats_t stats;
+    char filename[256];
+    int sp[NED];
     int igen, ngen, seed;
 
     if (argc != 6)
@@ -30,10 +37,12 @@ int main(int argc, char *argv[])
     }
 
     ngen            = atoi(argv[1]);
-    params.npop     = atoi(argv[2]);
+    params.popsize  = atoi(argv[2]);
     params.pcross   = atof(argv[3]);
     params.pmutate  = atof(argv[4]);
     seed            = atoi(argv[5]);
+
+    params.lchrom = NED;
 
     newpop = b1;
     oldpop = b2;
@@ -43,8 +52,9 @@ int main(int argc, char *argv[])
 
     R_init(seed);
     SGA_init(seed);
-    SGA_init_pop(oldpop);
+    SGA_init_pop(oldpop, &params);
 
+    sprintf(filename, "%d-%d-%d_%d.graph", R, S, NV, seed);
     printf("%9s %9s %9s %9s %9s %9s %9s\n",
             "gen", "avg", "var", "max", "min", "ncross", "nmutation");
 
@@ -61,6 +71,7 @@ int main(int argc, char *argv[])
                 stats.ncross,
                 stats.nmutation
               );
+        fflush(stdout);
 
         if (stats.fitness_max > 0.999) break;
 
@@ -70,6 +81,9 @@ int main(int argc, char *argv[])
         oldpop = newpop;
         newpop = swap;
     }
+
+    decode(stats.fittest->chrom, sp);
+    R_save_graph(sp, filename);
 
     return EXIT_SUCCESS;
 }
