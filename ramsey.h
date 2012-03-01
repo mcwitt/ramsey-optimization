@@ -41,5 +41,8 @@ void R_randomize(rep_t *p, double p_red, int mask);
 /* Flip spin at edge "iedge" (note this does NOT update the energy) */
 void R_flip(rep_t *p, int iedge);
 
+/* Compute the energy of a graph from scratch */
+int R_energy(int sp[NED]);
+
 /* Save graph to file */
 void R_save_graph(int sp[], char filename[]);

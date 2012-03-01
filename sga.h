@@ -1,12 +1,6 @@
-#include "dSFMT.h"
 #include "defs.h"
 
 #define SGA_MAXPOP 100
-
-#define SGA_RANDOM() dsfmt_genrand_close_open(&dsfmt)
-#define SGA_RND(l, u) (u-l)*SGA_RANDOM() + l
-
-extern dsfmt_t dsfmt;
 
 /* application-specific function to be defined in external file */
 double SGA_objfunc(int chrom[]);
@@ -31,6 +25,9 @@ typedef struct
     int ncross;
     int nmutation;
 } SGA_stats_t;
+
+/* call first to initialize */
+void SGA_init(uint32_t seed);
 
 /* create a population of random individuals */
 void SGA_init_pop(SGA_indiv_t pop[]);

@@ -214,6 +214,27 @@ void R_save_graph(int sp[NED], char filename[])
     fclose(fp);
 }
 
+int R_energy(int sp[NED])
+{
+    int isub, iedg, edgsum, energy = 0;
+
+    for (isub = 0; isub < NSGR; isub++)
+    {
+        edgsum = 0;
+        for (iedg = 0; iedg < nedr; iedg++) edgsum += sp[edgr[isub][iedg]];
+        if (edgsum == -nedr) energy++;
+    }
+
+    for (isub = 0; isub < NSGS; isub++)
+    {
+        edgsum = 0;
+        for (iedg = 0; iedg < neds; iedg++) edgsum += sp[edgs[isub][iedg]];
+        if (edgsum == neds) energy++;
+    }
+
+    return energy;
+}
+
 static void init_tabs(int *sub[], int *edg[], int t, int nsgfe, int nedt)
 {
     int nsub[NED];  /* number of subgraphs processed for each edge */

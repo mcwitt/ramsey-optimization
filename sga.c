@@ -1,10 +1,16 @@
 /* Genetic algorithm based on Goldberg's "Simple Genetic Algorithm" */
 
 #include <stdio.h>
+#include "dsfmt.h"
 #include "sga.h"
+
+#define SGA_RANDOM() dsfmt_genrand_close_open(&dsfmt)
+#define SGA_RND(l, u) (u-l)*SGA_RANDOM() + l
 
 #define MAX(x, y) ((x) > (y)) ? x : y
 #define MIN(x, y) ((x) > (y)) ? y : x
+
+dsfmt_t dsfmt;
 
 /* return the insertion point for x to maintain sorted order of a */
 static int bisect(double a[], double x, int l, int r)
@@ -83,6 +89,12 @@ static void update(SGA_indiv_t *p, int parent1, int parent2, int xsite)
     p->parent1 = parent1;
     p->parent2 = parent2;
     p->xsite = xsite;
+}
+
+void SGA_init(uint32_t seed)
+{
+    /* init random number generator */
+    dsfmt_init_gen_rand(&dsfmt, seed);
 }
 
 void SGA_init_pop(SGA_indiv_t pop[])
