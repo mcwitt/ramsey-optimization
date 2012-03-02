@@ -11,6 +11,48 @@
 
 dsfmt_t dsfmt;
 
+/* do linear scaling of fitnesses as described in Goldberg pp. 78-79 */
+static void linscale(SGA_indiv_t pop[], SGA_stats_t *st, SGA_params_t *pm)
+{
+    double delta, a, b;
+    double umin, umax, uavg, fmul, f;
+
+    umin = st->minfitness;
+    umax = st->maxfitness;
+    uavg = st->sumfitness / pm->popsize;
+    fmul = SGA_FMULT;
+
+    /* DETERMINE LINEAR SCALING COEFFICIENTS */
+    /* non-negative test */
+    if (umin > (fmul*uavg - umax) / (fmul - 1.))
+    {
+        /* normal scaling */
+        delta = umax - uavg;
+        a = (fmul - 1.) * uavg / delta;
+        b = uavg * (umax - fmul*uavg) / delta;
+    }
+    else
+    {
+        /* scale as much as possible */
+        delta = uavg - umin;
+        a = uavg / delta;
+        b = -uavg * umin / delta;
+    }
+
+    /* APPLY SCALING */
+    st->maxfitness = a * st->maxfitness + b;
+    st->minfitness = a * st->minfitness + b;
+    st->sumfitness  = 0.;
+    st->sumfitness2 = 0.;
+    for (i = 0; i < pm->popsize; i++)
+    {
+        f = a*pop[i].fitness + b;
+        pop[i].fitness = f;
+        st->sumfitness += f;
+        st->sumfitness2 += f*f;
+    }
+}
+
 /* return the insertion point for x to maintain sorted order of a */
 static int bisect(double a[], double x, int l, int r)
 {
@@ -84,7 +126,7 @@ static void mutate(int chrom[], int lchrom, double pmutate, int *nmutation)
 /* compute an individual's fitness and set parentage data */
 static void init_indiv(SGA_indiv_t *p, int parent1, int parent2, int xsite)
 {
-    p->fitness = SGA_objfunc(p->chrom);
+    p->objective = SGA_objfunc(p->chrom);
     p->parent1 = parent1;
     p->parent2 = parent2;
     p->xsite   = xsite;

@@ -2,6 +2,7 @@
 
 #define SGA_MAXPOPSIZE  1000
 #define SGA_MAXLCHROM   1000
+#define SGA_FMULT       2.0
 
 /* application-specific function to be defined in external file */
 double SGA_objfunc(int chrom[]);
@@ -9,7 +10,7 @@ double SGA_objfunc(int chrom[]);
 typedef struct
 {
     int chrom[SGA_MAXLCHROM];
-    double fitness;
+    double objective, fitness;
     int parent1, parent2, xsite;
 } SGA_indiv_t;
 
