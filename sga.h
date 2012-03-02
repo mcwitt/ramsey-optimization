@@ -21,20 +21,21 @@ typedef struct
     double pmutate;
 } SGA_params_t;
 
+/* stores statistics about a population */
 typedef struct
 {
-    SGA_indiv_t *fittest;   /* pointer to fittest individual */
-    double fitness_avg, fitness_var, fitness_min, fitness_max;
-    int ncross;
-    int nmutation;
+    int fittest;            /* index of fittest */
+    int ncross, nmutation;  /* since last generation */
+    double maxfitness, minfitness;
+    double sumfitness, sumfitness2;
 } SGA_stats_t;
 
 /* call first to initialize */
 void SGA_init(uint32_t seed);
 
 /* create a population of random individuals */
-void SGA_init_pop(SGA_indiv_t pop[], SGA_params_t *params);
+void SGA_init_pop(SGA_indiv_t pop[], SGA_stats_t *stats, SGA_params_t *params);
 
-/* advance oldpop by one generation; store result in newpop */
+/* advance oldpop by one generation; store result in newpop and update stats */
 void SGA_advance(SGA_indiv_t oldpop[], SGA_indiv_t newpop[],
-                 SGA_params_t *params, SGA_stats_t *stats);
+                 SGA_stats_t *stats, SGA_params_t *params);

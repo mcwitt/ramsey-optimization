@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <math.h>
 #include "ramsey.h"
 #include "sga.h"
 
@@ -20,8 +21,8 @@ double SGA_objfunc(int chrom[])
 
 int main(int argc, char *argv[])
 {
-    SGA_indiv_t b1[SGA_MAXPOPSIZE];
-    SGA_indiv_t b2[SGA_MAXPOPSIZE];
+    SGA_indiv_t pop1[SGA_MAXPOPSIZE];
+    SGA_indiv_t pop2[SGA_MAXPOPSIZE];
     SGA_indiv_t *newpop, *oldpop, *swap;
     SGA_params_t params;
     SGA_stats_t stats;
@@ -44,36 +45,33 @@ int main(int argc, char *argv[])
 
     params.lchrom = NED;
 
-    newpop = b1;
-    oldpop = b2;
-
-    stats.ncross = 0;
-    stats.nmutation = 0;
+    newpop = pop1;
+    oldpop = pop2;
 
     R_init(seed);
     SGA_init(seed);
-    SGA_init_pop(oldpop, &params);
+    SGA_init_pop(oldpop, &stats, &params);
 
     sprintf(filename, "%d-%d-%d_%d.graph", R, S, NV, seed);
-    printf("%9s %9s %9s %9s %9s %9s %9s\n",
+    printf("#%8s %9s %9s %9s %9s %9s %9s\n",
             "gen", "avg", "var", "max", "min", "ncross", "nmutation");
 
     for (igen = 0; igen < ngen; igen++)
     {
-        SGA_advance(oldpop, newpop, &params, &stats);
+        SGA_advance(oldpop, newpop, &stats, &params);
 
         printf("%9d %9.3g %9.3g %9.3g %9.3g %9d %9d\n",
                 igen,
-                stats.fitness_avg,
-                stats.fitness_var,
-                stats.fitness_max,
-                stats.fitness_min,
+                stats.sumfitness / params.popsize,
+                (stats.sumfitness2 - stats.sumfitness / params.popsize) / params.popsize,
+                stats.maxfitness,
+                stats.minfitness,
                 stats.ncross,
                 stats.nmutation
               );
         fflush(stdout);
 
-        if (stats.fitness_max > 0.999) break;
+        if (stats.maxfitness > 0.999) break;
 
         /* swap pointers to population arrays so that oldpop becomes newpop
          * (former oldpop will be overwritten in next iteration) */
@@ -82,7 +80,7 @@ int main(int argc, char *argv[])
         newpop = swap;
     }
 
-    decode(stats.fittest->chrom, sp);
+    decode(newpop[stats.fittest].chrom, sp);
     R_save_graph(sp, filename);
 
     return EXIT_SUCCESS;

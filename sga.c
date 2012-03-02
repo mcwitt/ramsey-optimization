@@ -28,7 +28,7 @@ static int bisect(double a[], double x, int l, int r)
 
 /*
  * Select an individual from the population with probability proportional to
- * its fitness. First determine partitions by calling `set_parts'.
+ * its fitness. First determine partitions by calling `preselect'.
  */
 static int select_mate(double parts[], int popsize)
 {
@@ -36,14 +36,13 @@ static int select_mate(double parts[], int popsize)
 }
 
 /* compute partitions for roulette-wheel selection */
-static void set_parts(SGA_indiv_t pop[], double parts[], int popsize)
+static void preselect(SGA_indiv_t pop[], double parts[],
+                      double sumfitness, int popsize)
 {
-    double sum = 0.;
     int i;
 
-    parts[0] = 0.;
-    for (i = 1; i < popsize; i++) sum += (parts[i] = pop[i].fitness);
-    for (i = 1; i < popsize; i++) parts[i] = parts[i-1] + parts[i]/sum;
+    parts[0] = pop[0].fitness / sumfitness;
+    for (i = 1; i < popsize; i++) parts[i] = parts[i-1] + pop[i].fitness/sumfitness;
 }
 
 /* cross 2 parent strings at specified crossing site,
@@ -56,14 +55,14 @@ static void crossover(int parent1[], int parent2[],
 
     for (i = 0; i < xsite; i++)
     {
-        child1[i] = parent2[i];
-        child2[i] = parent1[i];
+        child1[i] = parent1[i];
+        child2[i] = parent2[i];
     }
 
     for (; i < lchrom; i++)
     {
-        child1[i] = parent1[i];
-        child2[i] = parent2[i];
+        child1[i] = parent2[i];
+        child2[i] = parent1[i];
     }
 }
 
@@ -97,78 +96,88 @@ void SGA_init(uint32_t seed)
     dsfmt_init_gen_rand(&dsfmt, seed);
 }
 
-void SGA_init_pop(SGA_indiv_t pop[], SGA_params_t *params)
+void SGA_init_pop(SGA_indiv_t pop[], SGA_stats_t *st, SGA_params_t *pm)
 {
-    SGA_indiv_t *p;
-    int iind, j;
+    double f;
+    int i, j;
 
-    for (iind = 0; iind < params->popsize; iind++)
+    st->fittest     =  0;
+    st->sumfitness  =  0.;
+    st->sumfitness2 =  0.;
+    st->maxfitness  =  1e10;
+    st->minfitness  = -1e10;
+
+    for (i = 0; i < pm->popsize; i++)
     {
-        p = &pop[iind];
-        
         /* initialize chromosome with random bits */
-        for (j = 0; j < params->lchrom; j++)
-            p->chrom[j] = (SGA_RANDOM() < 0.5) ? 0 : 1;
+        for (j = 0; j < pm->lchrom; j++)
+            pop[i].chrom[j] = (SGA_RANDOM() < 0.5) ? 0 : 1;
 
         /* compute fitness; set parents and crossing site to default values */
-        init_indiv(p, -1, -1, 0);
+        init_indiv(&pop[i], -1, -1, 0);
+
+        f = pop[i].fitness;
+        st->sumfitness  += f;
+        st->sumfitness2 += f*f;
+        st->minfitness = MIN(st->minfitness, f);
+        if (f > st->maxfitness)
+            { st->fittest = i; st->maxfitness = f; }
     }
 }
 
 void SGA_advance(SGA_indiv_t oldpop[], SGA_indiv_t newpop[],
-                 SGA_params_t *p, SGA_stats_t *s)
+                 SGA_stats_t *st, SGA_params_t *pm)
 {
-    double parts[SGA_MAXPOPSIZE];
     double f1, f2;
-    int iind, mate1, mate2, xsite = 0;
+    double parts[SGA_MAXPOPSIZE];
+    int i, mate1, mate2, xsite = 0;
 
-    /* reset stats */
-    s->fittest     =  NULL;
-    s->fitness_avg =  0.;
-    s->fitness_var =  0.;
-    s->fitness_min =  1e10;
-    s->fitness_max = -1e10;
-    s->ncross      =  0;
-    s->nmutation   =  0;
+    preselect(oldpop, parts, st->sumfitness, pm->popsize);
 
-    set_parts(oldpop, parts, p->popsize);
+    st->fittest     =  0;
+    st->ncross      =  0;
+    st->nmutation   =  0;
+    st->sumfitness  =  0.;
+    st->sumfitness2 =  0.;
+    st->maxfitness  = -1e10;
+    st->minfitness  =  1e10;
 
-    for (iind = 0; iind < p->popsize; iind += 2)
+    for (i = 0; i < pm->popsize; i += 2)
     {
         /* select mates with probability proportional to fitness */
-        mate1 = select_mate(parts, p->popsize);
-        mate2 = select_mate(parts, p->popsize);
+        mate1 = select_mate(parts, pm->popsize);
+        mate2 = select_mate(parts, pm->popsize);
 
         /* do crossover with probability pcross */
-        if (SGA_RANDOM() < p->pcross)
+        if (SGA_RANDOM() < pm->pcross)
         {
-            xsite = SGA_RND(1, p->lchrom-1);
-            s->ncross += 1;
+            xsite = SGA_RND(1, pm->lchrom-1);
+            st->ncross += 1;
         }
-        else xsite = 0; /* copy without crossover */
+        else xsite = pm->lchrom; /* copy without crossover */
 
         crossover(oldpop[mate1].chrom, oldpop[mate2 ].chrom,
-                  newpop[iind ].chrom, newpop[iind+1].chrom,
-                  p->lchrom, xsite);
+                  newpop[i    ].chrom, newpop[i+1   ].chrom,
+                  pm->lchrom, xsite);
 
-        mutate(newpop[iind  ].chrom, p->lchrom, p->pmutate, &s->nmutation);
-        mutate(newpop[iind+1].chrom, p->lchrom, p->pmutate, &s->nmutation);
+        mutate(newpop[i  ].chrom, pm->lchrom, pm->pmutate, &st->nmutation);
+        mutate(newpop[i+1].chrom, pm->lchrom, pm->pmutate, &st->nmutation);
 
         /* compute fitness and set parentage data for children */
-        init_indiv(&newpop[iind  ], mate1, mate2, xsite);
-        init_indiv(&newpop[iind+1], mate1, mate2, xsite);
+        init_indiv(&newpop[i  ], mate1, mate2, xsite);
+        init_indiv(&newpop[i+1], mate1, mate2, xsite);
 
-        /* update stats */
-        f1 = newpop[iind  ].fitness;
-        f2 = newpop[iind+1].fitness;
-        s->fitness_avg += (f1 + f2);
-        s->fitness_var += (f1*f1 + f2*f2);
-        s->fitness_min = MIN(s->fitness_min, MIN(f1, f2));
-        if (f1 > s->fitness_max) { s->fitness_max = f1; s->fittest = &newpop[iind  ]; }
-        if (f2 > s->fitness_max) { s->fitness_max = f2; s->fittest = &newpop[iind+1]; }
+        /* accumulate stats */
+        f1 = newpop[i  ].fitness;
+        f2 = newpop[i+1].fitness;
+        st->sumfitness  += (f1 + f2);
+        st->sumfitness2 += (f1*f1 + f2*f2);
+        st->minfitness = MIN(st->minfitness, MIN(f1, f2));
+
+        /* check for new fittest individual */
+        if (f1 > st->maxfitness)
+            { st->maxfitness = f1; st->fittest = i;   }
+        if (f2 > st->maxfitness)
+            { st->maxfitness = f2; st->fittest = i+1; }
     }
-
-    s->fitness_avg /= p->popsize;
-    s->fitness_var = s->fitness_var / p->popsize
-                         - s->fitness_avg * s->fitness_avg;
 }
