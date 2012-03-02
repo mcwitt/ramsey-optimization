@@ -28,7 +28,6 @@ demon.out: ramsey.o
 demon2.out: ramsey2.o
 demon2-2.out: ramsey2.o
 
-genetic.out: CFLAGS := $(CFLAGS) -DSGA_CHROMLEN=NED
 genetic.out: ramsey.o sga.o
 
 # TEST PROGRAMS

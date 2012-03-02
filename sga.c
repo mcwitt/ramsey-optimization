@@ -3,6 +3,8 @@
 #include "dSFMT.h"
 #include "sga.h"
 
+#define FMULT 2.0
+
 #define SGA_RANDOM() dsfmt_genrand_close_open(&dsfmt)
 #define SGA_RND(l, u) (u-l)*SGA_RANDOM() + l
 
@@ -14,22 +16,21 @@ dsfmt_t dsfmt;
 /* do linear scaling of fitnesses as described in Goldberg pp. 78-79 */
 static void linscale(SGA_indiv_t pop[], SGA_stats_t *st, SGA_params_t *pm)
 {
-    double delta, a, b;
-    double umin, umax, uavg, fmul, f;
+    double umin, umax, uavg, delta, a, b;
+    int i;
 
     umin = st->minfitness;
     umax = st->maxfitness;
     uavg = st->sumfitness / pm->popsize;
-    fmul = SGA_FMULT;
 
-    /* DETERMINE LINEAR SCALING COEFFICIENTS */
+    /* determine linear scaling coefficients */
     /* non-negative test */
-    if (umin > (fmul*uavg - umax) / (fmul - 1.))
+    if (umin > (FMULT*uavg - umax) / (FMULT - 1.))
     {
         /* normal scaling */
         delta = umax - uavg;
-        a = (fmul - 1.) * uavg / delta;
-        b = uavg * (umax - fmul*uavg) / delta;
+        a = (FMULT - 1.) * uavg / delta;
+        b = uavg * (umax - FMULT*uavg) / delta;
     }
     else
     {
@@ -39,18 +40,13 @@ static void linscale(SGA_indiv_t pop[], SGA_stats_t *st, SGA_params_t *pm)
         b = -uavg * umin / delta;
     }
 
-    /* APPLY SCALING */
-    st->maxfitness = a * st->maxfitness + b;
-    st->minfitness = a * st->minfitness + b;
-    st->sumfitness  = 0.;
-    st->sumfitness2 = 0.;
-    for (i = 0; i < pm->popsize; i++)
-    {
-        f = a*pop[i].fitness + b;
-        pop[i].fitness = f;
-        st->sumfitness += f;
-        st->sumfitness2 += f*f;
-    }
+    /* apply scaling */
+    for (i = 0; i < pm->popsize; i++) pop[i].fitness = a*pop[i].fitness + b;
+    st->maxfitness  = a * st->maxfitness + b;
+    st->minfitness  = a * st->minfitness + b;
+    st->sumfitness  = a * st->sumfitness + b * pm->popsize;
+    st->sumfitness2 = a*a*st->sumfitness2 + 2*a*b*st->sumfitness
+                      + b*b*pm->popsize;
 }
 
 /* return the insertion point for x to maintain sorted order of a */
@@ -127,9 +123,10 @@ static void mutate(int chrom[], int lchrom, double pmutate, int *nmutation)
 static void init_indiv(SGA_indiv_t *p, int parent1, int parent2, int xsite)
 {
     p->objective = SGA_objfunc(p->chrom);
+    p->fitness = p->objective;
     p->parent1 = parent1;
     p->parent2 = parent2;
-    p->xsite   = xsite;
+    p->xsite = xsite;
 }
 
 void SGA_init(uint32_t seed)
@@ -146,8 +143,8 @@ void SGA_init_pop(SGA_indiv_t pop[], SGA_stats_t *st, SGA_params_t *pm)
     st->fittest     =  0;
     st->sumfitness  =  0.;
     st->sumfitness2 =  0.;
-    st->maxfitness  =  1e10;
-    st->minfitness  = -1e10;
+    st->maxfitness  = -1e10;
+    st->minfitness  =  1e10;
 
     for (i = 0; i < pm->popsize; i++)
     {
@@ -161,10 +158,11 @@ void SGA_init_pop(SGA_indiv_t pop[], SGA_stats_t *st, SGA_params_t *pm)
         f = pop[i].fitness;
         st->sumfitness  += f;
         st->sumfitness2 += f*f;
-        st->minfitness = MIN(st->minfitness, f);
-        if (f > st->maxfitness)
-            { st->fittest = i; st->maxfitness = f; }
+        if (f < st->minfitness) st->minfitness = f;
+        if (f > st->maxfitness) { st->fittest = i; st->maxfitness = f; }
     }
+
+    linscale(pop, st, pm);
 }
 
 void SGA_advance(SGA_indiv_t oldpop[], SGA_indiv_t newpop[],
@@ -198,8 +196,8 @@ void SGA_advance(SGA_indiv_t oldpop[], SGA_indiv_t newpop[],
         }
         else xsite = pm->lchrom; /* copy without crossover */
 
-        crossover(oldpop[mate1].chrom, oldpop[mate2 ].chrom,
-                  newpop[i    ].chrom, newpop[i+1   ].chrom,
+        crossover(oldpop[mate1].chrom, oldpop[mate2].chrom,
+                  newpop[i    ].chrom, newpop[i+1  ].chrom,
                   pm->lchrom, xsite);
 
         mutate(newpop[i  ].chrom, pm->lchrom, pm->pmutate, &st->nmutation);
@@ -222,4 +220,6 @@ void SGA_advance(SGA_indiv_t oldpop[], SGA_indiv_t newpop[],
         if (f2 > st->maxfitness)
             { st->maxfitness = f2; st->fittest = i+1; }
     }
+
+    linscale(newpop, st, pm);
 }

@@ -2,7 +2,6 @@
 
 #define SGA_MAXPOPSIZE  1000
 #define SGA_MAXLCHROM   1000
-#define SGA_FMULT       2.0
 
 /* application-specific function to be defined in external file */
 double SGA_objfunc(int chrom[]);

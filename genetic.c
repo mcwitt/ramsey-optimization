@@ -60,16 +60,19 @@ int main(int argc, char *argv[])
     {
         SGA_advance(oldpop, newpop, &stats, &params);
 
-        printf("%9d %9.3g %9.3g %9.3g %9.3g %9d %9d\n",
-                igen,
-                stats.sumfitness / params.popsize,
-                (stats.sumfitness2 - stats.sumfitness / params.popsize) / params.popsize,
-                stats.maxfitness,
-                stats.minfitness,
-                stats.ncross,
-                stats.nmutation
-              );
-        fflush(stdout);
+        if (igen % 10 == 0)
+        {
+            printf("%9d %9.3g %9.3g %9.3g %9.3g %9d %9d\n",
+                    igen,
+                    stats.sumfitness / params.popsize,
+                    (stats.sumfitness2 - stats.sumfitness / params.popsize) / params.popsize,
+                    stats.maxfitness,
+                    stats.minfitness,
+                    stats.ncross,
+                    stats.nmutation
+                  );
+            fflush(stdout);
+        }
 
         if (stats.maxfitness > 0.999) break;
 
