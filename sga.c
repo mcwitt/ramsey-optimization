@@ -1,27 +1,60 @@
 /* Genetic algorithm based on Goldberg's "Simple Genetic Algorithm" */
 
+#include <math.h>
 #include "dSFMT.h"
 #include "sga.h"
 
 #define FMULT 2.0
+#define C     3.0
+
+#define MAX(a, b) ((a) > (b)) ? a : b
 
 #define SGA_RANDOM() dsfmt_genrand_close_open(&dsfmt)
 #define SGA_RND(l, u) (u-l)*SGA_RANDOM() + l
 
-#define MAX(x, y) ((x) > (y)) ? x : y
-#define MIN(x, y) ((x) > (y)) ? y : x
-
 dsfmt_t dsfmt;
 
+static void sigmatrunc(SGA_indiv_t pop[], SGA_stats_t *st, int popsize)
+{
+    double uavg, sigma, f;
+    int i;
+
+    uavg = st->sumfitness / popsize;
+    sigma = sqrt(st->sumfitness2 / popsize - uavg*uavg);
+    st->sumfitness  = 0.;
+    st->sumfitness2 = 0.;
+
+    for (i = 0; i < popsize; i++)
+    {
+        f = (pop[i].fitness = MAX(0., pop[i].fitness - uavg + C*sigma));
+        st->sumfitness  += f;
+        st->sumfitness2 += f*f;
+    }
+
+    st->maxfitness = st->maxfitness - uavg + C*sigma;
+    st->minfitness = MAX(0., st->minfitness - uavg + C*sigma);
+}
+
 /* do linear scaling of fitnesses as described in Goldberg pp. 78-79 */
-static void linscale(SGA_indiv_t pop[], SGA_stats_t *st, SGA_params_t *pm)
+static void scalepop(SGA_indiv_t pop[], SGA_stats_t *st, int popsize)
 {
     double umin, umax, uavg, delta, a, b;
     int i;
 
+    /* debug */
+    /*
+    printf("BEFORE SIGMA TRUNCATION\n");
+    for (i = 0; i < popsize; i++) printf("%f\n", pop[i].fitness);
+    printf("max: %f\n", st->maxfitness);
+    printf("min: %f\n", st->minfitness);
+    printf("avg: %f\n", st->sumfitness/popsize);
+    */
+
+    sigmatrunc(pop, st, popsize);
+
     umin = st->minfitness;
     umax = st->maxfitness;
-    uavg = st->sumfitness / pm->popsize;
+    uavg = st->sumfitness / popsize;
 
     /* determine linear scaling coefficients */
     /* non-negative test */
@@ -40,13 +73,34 @@ static void linscale(SGA_indiv_t pop[], SGA_stats_t *st, SGA_params_t *pm)
         b = -uavg * umin / delta;
     }
 
+    /* debug */
+    /*
+    printf("BEFORE SCALING\n");
+    for (i = 0; i < popsize; i++) printf("%f\n", pop[i].fitness);
+    printf("max: %f\n", st->maxfitness);
+    printf("min: %f\n", st->minfitness);
+    printf("avg: %f\n", st->sumfitness/popsize);
+    printf("a=%f\n", a);
+    printf("b=%f\n", b);
+    */
+
     /* apply scaling */
-    for (i = 0; i < pm->popsize; i++) pop[i].fitness = a*pop[i].fitness + b;
-    st->maxfitness  = a * st->maxfitness + b;
-    st->minfitness  = a * st->minfitness + b;
-    st->sumfitness  = a * st->sumfitness + b * pm->popsize;
-    st->sumfitness2 = a*a*st->sumfitness2 + 2*a*b*st->sumfitness
-                      + b*b*pm->popsize;
+    for (i = 0; i < popsize; i++) pop[i].fitness = a*pop[i].fitness + b;
+    st->maxfitness  = a*umax + b;
+    st->minfitness  = a*umin + b;
+    st->sumfitness  = a*st->sumfitness + b*popsize;
+    st->sumfitness2 = a*a*st->sumfitness2 + b*b*popsize
+                      + 2*a*b*st->sumfitness; 
+
+    /* debug */
+    /*
+    printf("AFTER SCALING\n");
+    for (i = 0; i < popsize; i++) printf("%f\n", pop[i].fitness);
+    printf("max: %f\n", st->maxfitness);
+    printf("min: %f\n", st->minfitness);
+    printf("avg: %f\n", st->sumfitness/popsize);
+    exit(0);
+    */
 }
 
 /* return the insertion point for x to maintain sorted order of a */
@@ -162,7 +216,7 @@ void SGA_init_pop(SGA_indiv_t pop[], SGA_stats_t *st, SGA_params_t *pm)
         if (f > st->maxfitness) { st->fittest = i; st->maxfitness = f; }
     }
 
-    linscale(pop, st, pm);
+    scalepop(pop, st, pm->popsize);
 }
 
 void SGA_advance(SGA_indiv_t oldpop[], SGA_indiv_t newpop[],
@@ -174,7 +228,6 @@ void SGA_advance(SGA_indiv_t oldpop[], SGA_indiv_t newpop[],
 
     preselect(oldpop, parts, st->sumfitness, pm->popsize);
 
-    st->fittest     =  0;
     st->ncross      =  0;
     st->nmutation   =  0;
     st->sumfitness  =  0.;
@@ -212,7 +265,8 @@ void SGA_advance(SGA_indiv_t oldpop[], SGA_indiv_t newpop[],
         f2 = newpop[i+1].fitness;
         st->sumfitness  += (f1 + f2);
         st->sumfitness2 += (f1*f1 + f2*f2);
-        st->minfitness = MIN(st->minfitness, MIN(f1, f2));
+        if (f1 < st->minfitness) st->minfitness = f1;
+        if (f2 < st->minfitness) st->minfitness = f2;
 
         /* check for new fittest individual */
         if (f1 > st->maxfitness)
@@ -221,5 +275,5 @@ void SGA_advance(SGA_indiv_t oldpop[], SGA_indiv_t newpop[],
             { st->maxfitness = f2; st->fittest = i+1; }
     }
 
-    linscale(newpop, st, pm);
+    scalepop(newpop, st, pm->popsize);
 }

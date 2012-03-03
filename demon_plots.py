@@ -54,7 +54,7 @@ if __name__=='__main__':
         results.append(dict(
             fname = fname,
             data = data,
-            emin_stage = emin_stage
+            emin_stage = emin_stage,
             emin_run = emin_run
             )
         )

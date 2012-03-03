@@ -9,8 +9,8 @@ double SGA_objfunc(int chrom[]);
 typedef struct
 {
     int chrom[SGA_MAXLCHROM];
-    double objective, fitness;
     int parent1, parent2, xsite;
+    double objective, fitness;
 } SGA_indiv_t;
 
 typedef struct

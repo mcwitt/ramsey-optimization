@@ -16,7 +16,7 @@ double SGA_objfunc(int chrom[])
     int sp[NED];
 
     decode(chrom, sp);
-    return 1./(R_energy(sp)+1);
+    return -R_energy(sp);
 }
 
 int main(int argc, char *argv[])
@@ -53,8 +53,8 @@ int main(int argc, char *argv[])
     SGA_init_pop(oldpop, &stats, &params);
 
     sprintf(filename, "%d-%d-%d_%d.graph", R, S, NV, seed);
-    printf("#%8s %9s %9s %9s %9s %9s %9s\n",
-            "gen", "avg", "var", "max", "min", "ncross", "nmutation");
+    printf("#%8s %9s %9s %9s %9s %9s %9s %9s\n",
+            "gen", "emin", "favg", "fvar", "fmax", "fmin", "ncross", "nmutation");
 
     for (igen = 0; igen < ngen; igen++)
     {
@@ -62,10 +62,11 @@ int main(int argc, char *argv[])
 
         if (igen % 10 == 0)
         {
-            printf("%9d %9.3g %9.3g %9.3g %9.3g %9d %9d\n",
+            printf("%9d %9.3g %9.3g %9.3g %9.3g %9.3g %9d %9d\n",
                     igen,
+                    -newpop[stats.fittest].objective,
                     stats.sumfitness / params.popsize,
-                    (stats.sumfitness2 - stats.sumfitness / params.popsize) / params.popsize,
+                    (stats.sumfitness2-stats.sumfitness/params.popsize)/params.popsize,
                     stats.maxfitness,
                     stats.minfitness,
                     stats.ncross,
@@ -74,7 +75,7 @@ int main(int argc, char *argv[])
             fflush(stdout);
         }
 
-        if (stats.maxfitness > 0.999) break;
+        if (-newpop[stats.fittest].objective < 10e-9) break;
 
         /* swap pointers to population arrays so that oldpop becomes newpop
          * (former oldpop will be overwritten in next iteration) */
