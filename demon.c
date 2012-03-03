@@ -12,6 +12,7 @@
 
 #include <assert.h>
 #include <limits.h>
+#include <math.h>
 #include <stdio.h>
 #include "ramsey.h"
 
@@ -45,33 +46,33 @@ int main(int argc, char *argv[])
 {
     char filename[256];
     double sweep_mult;
-    int emax_demon_ini, nsweep_ini, nstage, nrun;
-    int irun, istage, isweep;
+    int nsweep_min, nsweep_max, nstage, nrun;
+    int irun, isweep;
     int nsweep, nflip, nflip_sweep = 0;
     int emax_demon, e_demon_av, emin, emin_stage;
     int mask;
     uint32_t seed;
 
-    if (argc != 7 && argc != 8)
+    if (argc != 6 && argc != 7)
     {
-        fprintf(stderr, "Usage: %s emax_demon_ini nsweep_ini sweep_mult"
+        fprintf(stderr, "Usage: %s nsweep_min nsweep_max"
                 " nstage nrun seed [partial_config]\n", argv[0]);
         fprintf(stderr, "Compiled for (%d, %d, %d)\n", R, S, NV);
         exit(EXIT_FAILURE);
     }
 
-    emax_demon_ini = atoi(argv[1]);
-    nsweep_ini = atoi(argv[2]);
-    sweep_mult = atof(argv[3]);
-    nstage = atoi(argv[4]);
-    nrun = atoi(argv[5]);
-    seed = atoi(argv[6]);
+    nsweep_min = atoi(argv[1]);
+    nsweep_max = atoi(argv[2]);
+    nstage = atoi(argv[3]);
+    nrun = atoi(argv[4]);
+    seed = atoi(argv[5]);
 
+    sweep_mult = pow((double) nsweep_max / nsweep_min, 1./nstage);
     sprintf(filename, "%d-%d-%d_%d.graph", R, S, NV, seed);
     
     R_init(seed);
 
-    if (argc == 8)
+    if (argc == 7)
     {
         /*
          * load configuration from file and set mask to prevent spins
@@ -79,7 +80,7 @@ int main(int argc, char *argv[])
          * iteration
          */
 
-        mask = R_init_replica_from_file(&r, argv[7]);
+        mask = R_init_replica_from_file(&r, argv[6]);
         printf("Starting from configuration in %s. Mask = %d\n",
                 filename, mask);
         assert(mask < NED);
@@ -96,20 +97,19 @@ int main(int argc, char *argv[])
     for (irun = 0; irun < nrun; irun++)
     {
         /* print column names */
-        printf("# %3s %8s %8s %12s %12s %8s %10s %12s %8s\n",
-            "run", "stage", "nsweep", "emax_demon", "e_demon_av",
+        printf("# %3s %8s %12s %12s %8s %10s %12s %8s\n",
+            "run", "nsweep", "emax_demon", "e_demon_av",
             "a.r.", "nflip/spin", "emin_stage", "emin");
 
         R_randomize(&r, (double) R/(R+S), mask);   /* randomize free spins */
-        nsweep = nsweep_ini;
-        e_demon = emax_demon = emax_demon_ini;
+        nsweep = nsweep_min;
+        e_demon = emax_demon = nstage;
 
-        for (istage = 0; istage < nstage; istage++)
+        while (emax_demon >= 0)
         {
             nflip = 0;
             e_demon_av = 0;
             emin_stage = INT_MAX;
-            emax_demon = (int) (emax_demon * ( 1. - istage/(nstage-1.) ));
 
             for (isweep = 0; isweep < nsweep; isweep++)
             {
@@ -136,8 +136,8 @@ int main(int argc, char *argv[])
             }
 
             /* print stage stats */
-            printf("%5d %8d %8d %12d %12.2f %8.5f %10.2f %12d %8d\n",
-                    irun, istage, nsweep, emax_demon,
+            printf("%5d %8d %12d %12.2f %8.5f %10.2f %12d %8d\n",
+                    irun, nsweep, emax_demon,
                     (double) e_demon_av/(isweep+1),
                     (double) nflip/NED/(isweep+1),
                     (double) nflip/NED,
@@ -146,6 +146,7 @@ int main(int argc, char *argv[])
 
             if ((emin == 0) || (nflip_sweep == 0)) break;
             nsweep *= sweep_mult;
+            emax_demon -= 1;
         }
 
         if (emin == 0) break;
