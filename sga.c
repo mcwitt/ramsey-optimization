@@ -4,7 +4,7 @@
 #include "dSFMT.h"
 #include "sga.h"
 
-#define FMULT 2.0
+#define FMULT 1.5
 #define C     3.0
 
 #define MAX(a, b) ((a) > (b)) ? a : b
@@ -14,93 +14,65 @@
 
 dsfmt_t dsfmt;
 
-static void sigmatrunc(SGA_indiv_t pop[], SGA_stats_t *st, int popsize)
+/*
+ * "sigma truncation" (Goldberg 124)--translate fitness values such that the
+ * average is c*sigma, then set negative values to zero
+ */
+static void sigmatrunc(double in[], double out[], int len, double c,
+                       double *avg, double *var, double *min, double *max)
 {
-    double uavg, sigma, f;
+    double shift, x;
     int i;
 
-    uavg = st->sumfitness / popsize;
-    sigma = sqrt(st->sumfitness2 / popsize - uavg*uavg);
-    st->sumfitness  = 0.;
-    st->sumfitness2 = 0.;
+    shift = c*sqrt(*var) - *avg;
 
-    for (i = 0; i < popsize; i++)
+    *var = 0.;
+    *avg += shift;
+    *max += shift;
+    if ((*min += shift) < 0.) *min = 0.;
+
+    for (i = 0; i < len; i++)
     {
-        f = (pop[i].fitness = MAX(0., pop[i].fitness - uavg + C*sigma));
-        st->sumfitness  += f;
-        st->sumfitness2 += f*f;
+        x = in[i] + shift;
+        if (x < 0.) { *avg = *avg - x/len; x = 0.; }
+        else *var += x*x;
+        out[i] = x;
     }
 
-    st->maxfitness = st->maxfitness - uavg + C*sigma;
-    st->minfitness = MAX(0., st->minfitness - uavg + C*sigma);
+    *var = *var/len - (*avg) * (*avg);
 }
 
 /* do linear scaling of fitnesses as described in Goldberg pp. 78-79 */
-static void scalepop(SGA_indiv_t pop[], SGA_stats_t *st, int popsize)
+static void scalepop(double in[], double out[], int len, double mult,
+                     double *avg, double *var, double *min, double *max)
 {
-    double umin, umax, uavg, delta, a, b;
+    double delta, a, b;
     int i;
 
-    /* debug */
-    /*
-    printf("BEFORE SIGMA TRUNCATION\n");
-    for (i = 0; i < popsize; i++) printf("%f\n", pop[i].fitness);
-    printf("max: %f\n", st->maxfitness);
-    printf("min: %f\n", st->minfitness);
-    printf("avg: %f\n", st->sumfitness/popsize);
-    */
-
-    sigmatrunc(pop, st, popsize);
-
-    umin = st->minfitness;
-    umax = st->maxfitness;
-    uavg = st->sumfitness / popsize;
+    sigmatrunc(in, out, len, C, avg, var, min, max);
 
     /* determine linear scaling coefficients */
     /* non-negative test */
-    if (umin > (FMULT*uavg - umax) / (FMULT - 1.))
+    if (*min > (FMULT * (*avg) - (*max)) / (FMULT - 1.))
     {
         /* normal scaling */
-        delta = umax - uavg;
-        a = (FMULT - 1.) * uavg / delta;
-        b = uavg * (umax - FMULT*uavg) / delta;
+        delta = *max - *avg;
+        a = (FMULT - 1.) * (*avg) / delta;
+        b = *avg * ((*max) - FMULT*(*avg)) / delta;
     }
     else
     {
         /* scale as much as possible */
-        delta = uavg - umin;
-        a = uavg / delta;
-        b = -uavg * umin / delta;
+        delta = *avg - *min;
+        a = *avg / delta;
+        b = -(*avg) * (*min) / delta;
     }
 
-    /* debug */
-    /*
-    printf("BEFORE SCALING\n");
-    for (i = 0; i < popsize; i++) printf("%f\n", pop[i].fitness);
-    printf("max: %f\n", st->maxfitness);
-    printf("min: %f\n", st->minfitness);
-    printf("avg: %f\n", st->sumfitness/popsize);
-    printf("a=%f\n", a);
-    printf("b=%f\n", b);
-    */
-
-    /* apply scaling */
-    for (i = 0; i < popsize; i++) pop[i].fitness = a*pop[i].fitness + b;
-    st->maxfitness  = a*umax + b;
-    st->minfitness  = a*umin + b;
-    st->sumfitness  = a*st->sumfitness + b*popsize;
-    st->sumfitness2 = a*a*st->sumfitness2 + b*b*popsize
-                      + 2*a*b*st->sumfitness; 
-
-    /* debug */
-    /*
-    printf("AFTER SCALING\n");
-    for (i = 0; i < popsize; i++) printf("%f\n", pop[i].fitness);
-    printf("max: %f\n", st->maxfitness);
-    printf("min: %f\n", st->minfitness);
-    printf("avg: %f\n", st->sumfitness/popsize);
-    exit(0);
-    */
+    /* apply scaling and calculate new variance*/
+    for (i = 0; i < len; i++) out[i] = a*out[i] + b;
+    *max = a * (*max) + b;
+    *min = a * (*min) + b;
+    *var = (a*a - 1)*(*avg)*(*avg) + 2*a*b*(*avg) + a*a*(*var) + b*b;
 }
 
 /* return the insertion point for x to maintain sorted order of a */
@@ -128,13 +100,13 @@ static int select_mate(double parts[], int popsize)
 }
 
 /* compute partitions for roulette-wheel selection */
-static void preselect(SGA_indiv_t pop[], double parts[],
+static void preselect(double fitness[], double parts[],
                       double sumfitness, int popsize)
 {
     int i;
 
-    parts[0] = pop[0].fitness / sumfitness;
-    for (i = 1; i < popsize; i++) parts[i] = parts[i-1] + pop[i].fitness/sumfitness;
+    parts[0] = fitness[0] / sumfitness;
+    for (i = 1; i < popsize; i++) parts[i] = parts[i-1] + fitness[i]/sumfitness;
 }
 
 /* cross 2 parent strings at specified crossing site,
@@ -173,107 +145,109 @@ static void mutate(int chrom[], int lchrom, double pmutate, int *nmutation)
     }
 }
 
-/* compute an individual's fitness and set parentage data */
-static void init_indiv(SGA_indiv_t *p, int parent1, int parent2, int xsite)
-{
-    p->objective = SGA_objfunc(p->chrom);
-    p->fitness = p->objective;
-    p->parent1 = parent1;
-    p->parent2 = parent2;
-    p->xsite = xsite;
-}
-
-void SGA_init(uint32_t seed)
-{
-    /* init random number generator */
-    dsfmt_init_gen_rand(&dsfmt, seed);
-}
-
-void SGA_init_pop(SGA_indiv_t pop[], SGA_stats_t *st, SGA_params_t *pm)
+void SGA_init(SGA_t *sga, int popsize, int lchrom,
+              double pcross, double pmutate, uint32_t seed)
 {
     double f;
     int i, j;
 
-    st->fittest     =  0;
-    st->sumfitness  =  0.;
-    st->sumfitness2 =  0.;
-    st->maxfitness  = -1e10;
-    st->minfitness  =  1e10;
+    sga->popsize = popsize;
+    sga->lchrom  = lchrom;
+    sga->pcross  = pcross;
+    sga->pmutate = pmutate;
 
-    for (i = 0; i < pm->popsize; i++)
+    /* init random number generator */
+    dsfmt_init_gen_rand(&dsfmt, seed);
+
+    sga->chrom = sga->chrom1;
+    sga->next = sga->chrom2;
+
+    /* create random population */
+    sga->fittest =  0;
+    sga->favg    =  0.;
+    sga->fvar    =  0.;
+    sga->fmin    =  1e10;
+    sga->fmax    = -1e10;
+
+    for (i = 0; i < popsize; i++)
     {
         /* initialize chromosome with random bits */
-        for (j = 0; j < pm->lchrom; j++)
-            pop[i].chrom[j] = (SGA_RANDOM() < 0.5) ? 0 : 1;
+        for (j = 0; j < lchrom; j++)
+            sga->chrom[i][j] = (SGA_RANDOM() < 0.5) ? 0 : 1;
 
-        /* compute fitness; set parents and crossing site to default values */
-        init_indiv(&pop[i], -1, -1, 0);
-
-        f = pop[i].fitness;
-        st->sumfitness  += f;
-        st->sumfitness2 += f*f;
-        if (f < st->minfitness) st->minfitness = f;
-        if (f > st->maxfitness) { st->fittest = i; st->maxfitness = f; }
+        f = sga->fitness[i] = sga->objective[i] = SGA_objfunc(sga->chrom[i]);
+        sga->favg += f;
+        sga->fvar += f*f;
+        if (f > sga->fmax) {sga->fmax = f; sga->fittest = i; }
+        if (f < sga->fmin) {sga->fmin = f; }
     }
 
-    scalepop(pop, st, pm->popsize);
+    sga->favg /= popsize;
+    sga->fvar = sga->fvar / popsize - (sga->favg)*(sga->favg);
+
+    scalepop(sga->fitness, sga->fitness, popsize, FMULT,
+             &sga->favg, &sga->fvar, &sga->fmin, &sga->fmax);
+
 }
 
-void SGA_advance(SGA_indiv_t oldpop[], SGA_indiv_t newpop[],
-                 SGA_stats_t *st, SGA_params_t *pm)
+void SGA_advance(SGA_t *sga, int *ncross, int *nmutation)
 {
-    double f1, f2;
+    double f;
     double parts[SGA_MAXPOPSIZE];
     int i, mate1, mate2, xsite = 0;
+    int (*swap)[SGA_MAXPOPSIZE];
 
-    preselect(oldpop, parts, st->sumfitness, pm->popsize);
+    *ncross    =  0;
+    *nmutation =  0;
 
-    st->ncross      =  0;
-    st->nmutation   =  0;
-    st->sumfitness  =  0.;
-    st->sumfitness2 =  0.;
-    st->maxfitness  = -1e10;
-    st->minfitness  =  1e10;
+    preselect(sga->fitness, parts, sga->popsize * sga->favg, sga->popsize);
 
-    for (i = 0; i < pm->popsize; i += 2)
+    /* create new generation using crossover and mutation */
+    for (i = 0; i < sga->popsize; i += 2)
     {
         /* select mates with probability proportional to fitness */
-        mate1 = select_mate(parts, pm->popsize);
-        mate2 = select_mate(parts, pm->popsize);
+        mate1 = select_mate(parts, sga->popsize);
+        mate2 = select_mate(parts, sga->popsize);
 
         /* do crossover with probability pcross */
-        if (SGA_RANDOM() < pm->pcross)
+        if (SGA_RANDOM() < sga->pcross)
         {
-            xsite = SGA_RND(1, pm->lchrom-1);
-            st->ncross += 1;
+            xsite = SGA_RND(1, sga->lchrom-1);
+            *ncross += 1;
         }
-        else xsite = pm->lchrom; /* copy without crossover */
+        else xsite = sga->lchrom; /* copy without crossover */
 
-        crossover(oldpop[mate1].chrom, oldpop[mate2].chrom,
-                  newpop[i    ].chrom, newpop[i+1  ].chrom,
-                  pm->lchrom, xsite);
+        crossover(sga->chrom[mate1], sga->chrom[mate2],
+                  sga->next[i], sga->next[i+1],
+                  sga->lchrom, xsite);
 
-        mutate(newpop[i  ].chrom, pm->lchrom, pm->pmutate, &st->nmutation);
-        mutate(newpop[i+1].chrom, pm->lchrom, pm->pmutate, &st->nmutation);
-
-        /* compute fitness and set parentage data for children */
-        init_indiv(&newpop[i  ], mate1, mate2, xsite);
-        init_indiv(&newpop[i+1], mate1, mate2, xsite);
-
-        /* accumulate stats */
-        f1 = newpop[i  ].fitness;
-        f2 = newpop[i+1].fitness;
-        st->sumfitness  += (f1 + f2);
-        st->sumfitness2 += (f1*f1 + f2*f2);
-        if (f1 < st->minfitness) st->minfitness = f1;
-        if (f2 < st->minfitness) st->minfitness = f2;
-
-        /* check for new fittest individual */
-        if (f1 > st->maxfitness)
-            { st->maxfitness = f1; st->fittest = i;   }
-        if (f2 > st->maxfitness)
-            { st->maxfitness = f2; st->fittest = i+1; }
+        mutate(sga->next[i  ], sga->lchrom, sga->pmutate, nmutation);
+        mutate(sga->next[i+1], sga->lchrom, sga->pmutate, nmutation);
     }
 
-    scalepop(newpop, st, pm->popsize);
+    /* swap pointers so that sga->chrom points to the new generation */
+    swap = sga->chrom;
+    sga->chrom = sga->next;
+    sga->next = swap;
+
+    /* compute fitness and statistics for new generation */
+    sga->favg  =  0.;
+    sga->fvar  =  0.;
+    sga->fmax  = -1e10;
+    sga->fmin  =  1e10;
+
+    for (i = 0; i < sga->popsize; i++)
+    {
+        f = sga->fitness[i] = sga->objective[i] = SGA_objfunc(sga->chrom[i]);
+        sga->favg += f;
+        sga->fvar += f*f;
+        if (f > sga->fmax) {sga->fmax = f; sga->fittest = i; }
+        if (f < sga->fmin) {sga->fmin = f; }
+    }
+
+    sga->favg /= sga->popsize;
+    sga->fvar = sga->fvar / sga->popsize - (sga->favg)*(sga->favg);
+
+    scalepop(sga->fitness, sga->fitness, sga->popsize, FMULT,
+             &sga->favg, &sga->fvar, &sga->fmin, &sga->fmax);
 }

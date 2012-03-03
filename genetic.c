@@ -21,14 +21,13 @@ double SGA_objfunc(int chrom[])
 
 int main(int argc, char *argv[])
 {
-    SGA_indiv_t pop1[SGA_MAXPOPSIZE];
-    SGA_indiv_t pop2[SGA_MAXPOPSIZE];
-    SGA_indiv_t *newpop, *oldpop, *swap;
-    SGA_params_t params;
-    SGA_stats_t stats;
+    SGA_t sga;
     char filename[256];
+    double pcross, pmutate;
+    int popsize;
     int sp[NED];
     int igen, ngen, seed;
+    int ncross, nmutation;
 
     if (argc != 6)
     {
@@ -37,20 +36,14 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    ngen            = atoi(argv[1]);
-    params.popsize  = atoi(argv[2]);
-    params.pcross   = atof(argv[3]);
-    params.pmutate  = atof(argv[4]);
-    seed            = atoi(argv[5]);
-
-    params.lchrom = NED;
-
-    newpop = pop1;
-    oldpop = pop2;
+    ngen    = atoi(argv[1]);
+    popsize = atoi(argv[2]);
+    pcross  = atof(argv[3]);
+    pmutate = atof(argv[4]);
+    seed    = atoi(argv[5]);
 
     R_init(seed);
-    SGA_init(seed);
-    SGA_init_pop(oldpop, &stats, &params);
+    SGA_init(&sga, popsize, NED, pcross, pmutate, seed);
 
     sprintf(filename, "%d-%d-%d_%d.graph", R, S, NV, seed);
     printf("#%8s %9s %9s %9s %9s %9s %9s %9s\n",
@@ -58,33 +51,27 @@ int main(int argc, char *argv[])
 
     for (igen = 0; igen < ngen; igen++)
     {
-        SGA_advance(oldpop, newpop, &stats, &params);
+        SGA_advance(&sga, &ncross, &nmutation);
 
         if (igen % 10 == 0)
         {
             printf("%9d %9.3g %9.3g %9.3g %9.3g %9.3g %9d %9d\n",
                     igen,
-                    -newpop[stats.fittest].objective,
-                    stats.sumfitness / params.popsize,
-                    (stats.sumfitness2-stats.sumfitness/params.popsize)/params.popsize,
-                    stats.maxfitness,
-                    stats.minfitness,
-                    stats.ncross,
-                    stats.nmutation
+                    -sga.objective[sga.fittest],
+                    sga.favg,
+                    sga.fvar,
+                    sga.fmax,
+                    sga.fmin,
+                    ncross,
+                    nmutation
                   );
             fflush(stdout);
         }
 
-        if (-newpop[stats.fittest].objective < 10e-9) break;
-
-        /* swap pointers to population arrays so that oldpop becomes newpop
-         * (former oldpop will be overwritten in next iteration) */
-        swap = oldpop;
-        oldpop = newpop;
-        newpop = swap;
+        if (-sga.objective[sga.fittest] < 10e-9) break;
     }
 
-    decode(newpop[stats.fittest].chrom, sp);
+    decode(sga.chrom[sga.fittest], sp);
     R_save_graph(sp, filename);
 
     return EXIT_SUCCESS;

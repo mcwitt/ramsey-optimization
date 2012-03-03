@@ -8,34 +8,20 @@ double SGA_objfunc(int chrom[]);
 
 typedef struct
 {
-    int chrom[SGA_MAXLCHROM];
-    int parent1, parent2, xsite;
-    double objective, fitness;
-} SGA_indiv_t;
-
-typedef struct
-{
-    int popsize;
-    int lchrom;
-    double pcross;
-    double pmutate;
-} SGA_params_t;
-
-/* stores statistics about a population */
-typedef struct
-{
-    int fittest;            /* index of fittest */
-    int ncross, nmutation;  /* since last generation */
-    double maxfitness, minfitness;
-    double sumfitness, sumfitness2;
-} SGA_stats_t;
-
-/* call first to initialize */
-void SGA_init(uint32_t seed);
+    int chrom1[SGA_MAXPOPSIZE][SGA_MAXLCHROM];
+    int chrom2[SGA_MAXPOPSIZE][SGA_MAXLCHROM];
+    int (*chrom)[SGA_MAXPOPSIZE], (*next)[SGA_MAXPOPSIZE];
+    double objective[SGA_MAXPOPSIZE];
+    double fitness[SGA_MAXPOPSIZE];
+    int popsize, lchrom;
+    double pcross, pmutate;
+    int fittest;
+    double fmin, fmax, favg, fvar;
+} SGA_t;
 
 /* create a population of random individuals */
-void SGA_init_pop(SGA_indiv_t pop[], SGA_stats_t *stats, SGA_params_t *params);
+void SGA_init(SGA_t *sga, int popsize, int lchrom,
+              double pcross, double pmutate, uint32_t seed);
 
-/* advance oldpop by one generation; store result in newpop and update stats */
-void SGA_advance(SGA_indiv_t oldpop[], SGA_indiv_t newpop[],
-                 SGA_stats_t *stats, SGA_params_t *params);
+/* advance one generation */
+void SGA_advance(SGA_t *sga, int *ncross, int *nmutation);

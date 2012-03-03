@@ -26,8 +26,3 @@ for i in xrange(nsims):
 
     f.write(cmd % (2*tuple(params+[seed])))
     f.close()
-
-
-
-
-
