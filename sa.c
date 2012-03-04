@@ -12,15 +12,19 @@
 
 #include <limits.h>
 #include <math.h>
+#include "dSFMT.h"
 #include "ramsey.h"
-
-/*#include "fastexp.h"*/
-#define EXP(x) exp(x)
 
 #define WRITE_MAX 10  /* only save graph when energy is below this value */
 
-rep_t r;
+/*#include "fastexp.h"*/
+#define EXP(x) exp(x)
+#define RANDOM() dsfmt_genrand_close_open(&dsfmt)
+
+R_replica_t r;
 double T;
+
+dsfmt_t dsfmt;
 
 int sweep()
 {
@@ -30,7 +34,7 @@ int sweep()
     {
         delta = r.sp[j]*r.h2[j];
 
-        if (delta <= 0 || R_RAND() < EXP(-delta/T))
+        if (delta <= 0 || RANDOM() < EXP(-delta/T))
         {
             R_flip(&r, j);
             r.en += delta;
@@ -45,7 +49,7 @@ int main(int argc, char *argv[])
 {
     char filename[256];
     double T_ini, sweep_mult;
-    int nsweep_ini, nstage, nrun;
+    int nsweep_min, nsweep_max, nstage, nrun;
     int irun, istage, isweep;
     int nsweep, nflip;
     int emin, emin_stage;
@@ -54,21 +58,23 @@ int main(int argc, char *argv[])
 
     if (argc != 7 && argc != 8)
     {
-        fprintf(stderr, "Usage: %s T_ini nsweep_ini sweep_mult"
+        fprintf(stderr, "Usage: %s T_ini nsweep_min nsweep_max"
                 " nstage nrun seed [partial_config]\n", argv[0]);
         fprintf(stderr, "Compiled for (%d, %d, %d)\n", R, S, NV);
         exit(EXIT_FAILURE);
     }
 
     T_ini = atof(argv[1]);
-    nsweep_ini = atoi(argv[2]);
-    sweep_mult = atof(argv[3]);
+    nsweep_min = atoi(argv[2]);
+    nsweep_max = atoi(argv[3]);
     nstage = atoi(argv[4]);
     nrun = atoi(argv[5]);
     seed = atoi(argv[6]);
 
+    sweep_mult = pow((double) nsweep_max / nsweep_min, 1./nstage);
     sprintf(filename, "%d-%d-%d_%d.graph", R, S, NV, seed);
     
+    dsfmt_init_gen_rand(&dsfmt, seed);
     R_init(seed);
 
     if (argc == 8)
@@ -100,7 +106,7 @@ int main(int argc, char *argv[])
             "run", "stage", "nsweep", "T", "a.r.", "emin_stage", "emin");
 
         R_randomize(&r, (double) R/(R+S), mask);   /* randomize free spins */
-        nsweep = nsweep_ini;
+        nsweep = nsweep_min;
         T = T_ini;
 
         for (istage = nstage; istage >= 0; istage--)

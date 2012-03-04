@@ -14,11 +14,12 @@
 #include <limits.h>
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include "ramsey.h"
 
 #define WRITE_MAX 10  /* only save graph when energy is below this value */
 
-rep_t r;
+R_replica_t r;
 int e_demon;
 
 int sweep(int emax_demon)

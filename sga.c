@@ -7,16 +7,14 @@
 #define FMULT 1.5
 #define C     3.0
 
-#define MAX(a, b) ((a) > (b)) ? a : b
-
 #define SGA_RANDOM() dsfmt_genrand_close_open(&dsfmt)
 #define SGA_RND(l, u) (u-l)*SGA_RANDOM() + l
 
 dsfmt_t dsfmt;
 
 /*
- * "sigma truncation" (Goldberg 124)--translate fitness values such that the
- * average is c*sigma, then set negative values to zero
+ * "sigma truncation" (Goldberg 124)--translate fitness values to make the
+ * average c*sigma, then set negative values to zero
  */
 static void sigmatrunc(double in[], double out[], int len, double c,
                        double *avg, double *var, double *min, double *max)
@@ -48,8 +46,6 @@ static void scalepop(double in[], double out[], int len, double mult,
 {
     double delta, a, b;
     int i;
-
-    sigmatrunc(in, out, len, C, avg, var, min, max);
 
     /* determine linear scaling coefficients */
     /* non-negative test */
@@ -111,8 +107,8 @@ static void preselect(double fitness[], double parts[],
 
 /* cross 2 parent strings at specified crossing site,
  * place in 2 child strings */
-static void crossover(int parent1[], int parent2[],
-                      int child1[],  int child2[],
+static void crossover(allele_t parent1[], allele_t parent2[],
+                      allele_t child1[],  allele_t child2[],
                       int lchrom, int xsite)
 {
     int i;
@@ -131,7 +127,7 @@ static void crossover(int parent1[], int parent2[],
 }
 
 /* flip each bit in a chromosome with probability pmutate */
-static void mutate(int chrom[], int lchrom, double pmutate, int *nmutation)
+static void mutate(allele_t chrom[], int lchrom, double pmutate, int *nmutation)
 {
     int i;
 
@@ -146,6 +142,7 @@ static void mutate(int chrom[], int lchrom, double pmutate, int *nmutation)
 }
 
 void SGA_init(SGA_t *sga, int popsize, int lchrom,
+              double (*objfunc)(allele_t*),
               double pcross, double pmutate, uint32_t seed)
 {
     double f;
@@ -153,14 +150,15 @@ void SGA_init(SGA_t *sga, int popsize, int lchrom,
 
     sga->popsize = popsize;
     sga->lchrom  = lchrom;
+    sga->objfunc = objfunc;
     sga->pcross  = pcross;
     sga->pmutate = pmutate;
 
     /* init random number generator */
     dsfmt_init_gen_rand(&dsfmt, seed);
 
-    sga->chrom = sga->chrom1;
-    sga->next = sga->chrom2;
+    sga->chrom = sga->b1;
+    sga->nextg = sga->b2;
 
     /* create random population */
     sga->fittest =  0;
@@ -175,7 +173,7 @@ void SGA_init(SGA_t *sga, int popsize, int lchrom,
         for (j = 0; j < lchrom; j++)
             sga->chrom[i][j] = (SGA_RANDOM() < 0.5) ? 0 : 1;
 
-        f = sga->fitness[i] = sga->objective[i] = SGA_objfunc(sga->chrom[i]);
+        f = sga->fitness[i] = sga->objective[i] = sga->objfunc(sga->chrom[i]);
         sga->favg += f;
         sga->fvar += f*f;
         if (f > sga->fmax) {sga->fmax = f; sga->fittest = i; }
@@ -185,6 +183,8 @@ void SGA_init(SGA_t *sga, int popsize, int lchrom,
     sga->favg /= popsize;
     sga->fvar = sga->fvar / popsize - (sga->favg)*(sga->favg);
 
+    sigmatrunc(sga->fitness, sga->fitness, sga->popsize, C,
+               &sga->favg, &sga->fvar, &sga->fmin, &sga->fmax);
     scalepop(sga->fitness, sga->fitness, popsize, FMULT,
              &sga->favg, &sga->fvar, &sga->fmin, &sga->fmax);
 
@@ -218,17 +218,17 @@ void SGA_advance(SGA_t *sga, int *ncross, int *nmutation)
         else xsite = sga->lchrom; /* copy without crossover */
 
         crossover(sga->chrom[mate1], sga->chrom[mate2],
-                  sga->next[i], sga->next[i+1],
+                  sga->nextg[i    ], sga->nextg[i+1  ],
                   sga->lchrom, xsite);
 
-        mutate(sga->next[i  ], sga->lchrom, sga->pmutate, nmutation);
-        mutate(sga->next[i+1], sga->lchrom, sga->pmutate, nmutation);
+        mutate(sga->nextg[i  ], sga->lchrom, sga->pmutate, nmutation);
+        mutate(sga->nextg[i+1], sga->lchrom, sga->pmutate, nmutation);
     }
 
     /* swap pointers so that sga->chrom points to the new generation */
     swap = sga->chrom;
-    sga->chrom = sga->next;
-    sga->next = swap;
+    sga->chrom = sga->nextg;
+    sga->nextg = swap;
 
     /* compute fitness and statistics for new generation */
     sga->favg  =  0.;
@@ -238,7 +238,7 @@ void SGA_advance(SGA_t *sga, int *ncross, int *nmutation)
 
     for (i = 0; i < sga->popsize; i++)
     {
-        f = sga->fitness[i] = sga->objective[i] = SGA_objfunc(sga->chrom[i]);
+        f = sga->fitness[i] = sga->objective[i] = sga->objfunc(sga->chrom[i]);
         sga->favg += f;
         sga->fvar += f*f;
         if (f > sga->fmax) {sga->fmax = f; sga->fittest = i; }
@@ -248,6 +248,8 @@ void SGA_advance(SGA_t *sga, int *ncross, int *nmutation)
     sga->favg /= sga->popsize;
     sga->fvar = sga->fvar / sga->popsize - (sga->favg)*(sga->favg);
 
+    sigmatrunc(sga->fitness, sga->fitness, sga->popsize, C,
+               &sga->favg, &sga->fvar, &sga->fmin, &sga->fmax);
     scalepop(sga->fitness, sga->fitness, sga->popsize, FMULT,
              &sga->favg, &sga->fvar, &sga->fmin, &sga->fmax);
 }

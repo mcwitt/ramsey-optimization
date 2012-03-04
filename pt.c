@@ -19,21 +19,24 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-
+#include "dSFMT.h"
 #include "ramsey.h"
 
-rep_t reps[MAX_NT]; /* storage for parallel tempering (PT) replicas */
-int ri[MAX_NT];     /* replica indices in order of increasing temperature */
+#define RANDOM() dsfmt_genrand_close_open(&dsfmt)
 
-int nsweeps;        /* number of sweeps */
-int emin;           /* lowest energy found */
-int max_sweeps;     /* number of sweeps to do before giving up */
+R_replica_t reps[MAX_NT];   /* storage for parallel tempering (PT) replicas */
+int ri[MAX_NT]; /* replica indices in order of increasing temperature */
+
+int nsweeps;    /* number of sweeps */
+int emin;       /* lowest energy found */
+int max_sweeps; /* number of sweeps to do before giving up */
 
 int nT;                 /* number of PT copies */
 int nswaps[MAX_NT];     /* number of swaps between each pair of temperatures */
 double T[MAX_NT];       /* array of temperatures */
 double mbeta[MAX_NT];   /* negative inverse temperatures */
 
+dsfmt_t dsfmt;
 uint32_t seed; /* seed used to initialize RNG */
 
 #ifndef NOTIME
@@ -43,7 +46,7 @@ clock_t start;  /* start time */
 /* Update each spin once */
 void sweep()
 {
-    rep_t *p;
+    R_replica_t *p;
     int iT, j, delta;
 
     for (iT = 0; iT < nT; iT++)
@@ -56,7 +59,7 @@ void sweep()
             delta = p->h2[j]*p->sp[j];
 
             /* flip with Metropolis probability */
-            if (delta <= 0 || R_RAND() < exp(mbeta[iT]*delta))
+            if (delta <= 0 || RANDOM() < exp(mbeta[iT]*delta))
             {
                 p->en += delta;
                 R_flip(p, j);
@@ -76,7 +79,7 @@ void temper()
         logar = (reps[ri[iT-1]].en - reps[ri[iT]].en)
             * (mbeta[iT] - mbeta[iT-1]);
 
-        if (R_RAND() < exp(logar))
+        if (RANDOM() < exp(logar))
         {
             /* do PT swap */
             copy = ri[iT-1];
@@ -117,7 +120,7 @@ void print_status()
 int main(int argc, char *argv[])
 {
     FILE *infile;
-    rep_t *p;
+    R_replica_t *p;
     char filename[256];
     double t;
     int iT;
@@ -137,7 +140,7 @@ int main(int argc, char *argv[])
     max_sweeps = atoi(argv[2]);
     seed = atoi(argv[3]);
 
-    /* READ TEMPERATURES */
+    /* read temperatures */
     if (! (infile = fopen(argv[1], "r")))
     {
         fprintf(stderr, "Error opening file: %s\n", argv[1]);
@@ -154,10 +157,11 @@ int main(int argc, char *argv[])
     assert(nT > 1);
 
 
-    /* INITIALIZE SIMULATION */
+    /* initialize simulation */
+    dsfmt_init_gen_rand(&dsfmt, seed);
     R_init(seed);
 
-    /* INITIALIZE REPLICAS */
+    /* initialize replicas */
     if (argc == 5) /* initial configuration specified */
     {
         R_init_replica_from_file(reps, argv[4]);
@@ -176,7 +180,7 @@ int main(int argc, char *argv[])
         nswaps[iT] = 0;
     }
 
-    /* BEGIN SIMULATION */
+    /* begin simulation */
     sprintf(filename, "%d-%d-%d_%d.graph", R, S, NV, seed);
     emin = INT_MAX;
     nsweeps = 0;

@@ -3,16 +3,22 @@
 #define SGA_MAXPOPSIZE  1000
 #define SGA_MAXLCHROM   1000
 
-/* application-specific function to be defined in external file */
-double SGA_objfunc(int chrom[]);
+typedef int allele_t;
 
 typedef struct
 {
-    int chrom1[SGA_MAXPOPSIZE][SGA_MAXLCHROM];
-    int chrom2[SGA_MAXPOPSIZE][SGA_MAXLCHROM];
-    int (*chrom)[SGA_MAXPOPSIZE], (*next)[SGA_MAXPOPSIZE];
-    double objective[SGA_MAXPOPSIZE];
-    double fitness[SGA_MAXPOPSIZE];
+    /* buffers to store chromosome data */
+    allele_t b1[SGA_MAXPOPSIZE][SGA_MAXLCHROM];
+    allele_t b2[SGA_MAXPOPSIZE][SGA_MAXLCHROM];
+
+    /* pointers to chromosome data for current and next generation */
+    allele_t (*chrom)[SGA_MAXPOPSIZE], (*nextg)[SGA_MAXPOPSIZE];
+
+    double (*objfunc)(allele_t*);
+
+    double objective[SGA_MAXPOPSIZE];   /* raw value of objective function */
+    double fitness[SGA_MAXPOPSIZE];     /* scaled fitness */
+
     int popsize, lchrom;
     double pcross, pmutate;
     int fittest;
@@ -21,6 +27,7 @@ typedef struct
 
 /* create a population of random individuals */
 void SGA_init(SGA_t *sga, int popsize, int lchrom,
+              double (*objfunc)(allele_t*),
               double pcross, double pmutate, uint32_t seed);
 
 /* advance one generation */

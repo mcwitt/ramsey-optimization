@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <time.h>
 #include "ramsey.h"
 
@@ -43,7 +44,7 @@ int energy(int sp[], int nv, int r, int s)
 
 int main()
 {
-    rep_t r;
+    R_replica_t r;
     int i;
     uint32_t seed = 0;
 

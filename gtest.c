@@ -27,51 +27,11 @@ void chrom2str(int chrom[], char str[])
         str[i] = (chrom[i] == 1) ? '1' : '0';
 }
 
-void report(FILE *fp, SGA_indiv_t pop[])
-{
-    SGA_indiv_t *p;
-    int i;
-    char cstr[LCHROM];
-
-    fprintf(fp, "%4s %8s %6s %*s %8s\n",
-            "#", "parents", "xsite", LCHROM+2, "string", "fitness");
-
-    for (i = 0; i < POPSIZE; i++)
-    {
-        p = &pop[i];
-        chrom2str(p->chrom, cstr);
-        fprintf(fp, "%4d (%2d, %2d) %6d %*s %8.4f\n",
-                i,
-                p->parent1,
-                p->parent2,
-                p->xsite,
-                LCHROM+2,
-                cstr,
-                p->fitness
-               );
-    }
-}
-
 int main()
 {
-    SGA_params_t params;
-    SGA_stats_t  stats;
-    SGA_indiv_t  oldpop[POPSIZE], newpop[POPSIZE];
-    FILE *fp1, *fp2;
+    SGA_t sga;
     int ncross, nmutation;
 
-    fp1 = fopen("gen1.txt", "w");
-    fp2 = fopen("gen2.txt", "w");
-
-    params.popsize = POPSIZE;
-    params.lchrom  = 30;
-    params.pcross  = 0.6;
-    params.pmutate = 0.000333;
-
-    SGA_init(123);
-    SGA_init_pop(oldpop, &stats, &params);
-    SGA_advance(oldpop, newpop, &stats, &params, &ncross, &nmutation);
-
-    report(fp1, oldpop);
-    report(fp2, newpop);
+    SGA_init(&sga, POPSIZE, 30, 0.6, 0.00333, 123);
+    SGA_advance(&sga, &ncross, &nmutation);
 }

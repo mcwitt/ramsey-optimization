@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <math.h>
 #include "ramsey.h"
 #include "sga.h"
@@ -11,7 +12,7 @@ void decode(int chrom[], int sp[])
         sp[i] = (chrom[i] == 1) ? 1 : -1;
 }
 
-double SGA_objfunc(int chrom[])
+double objfunc(int chrom[])
 {
     int sp[NED];
 
@@ -31,7 +32,7 @@ int main(int argc, char *argv[])
 
     if (argc != 6)
     {
-        fprintf(stderr, "Usage: %s ngen npop pcross pmutate seed\n", argv[0]);
+        fprintf(stderr, "Usage: %s ngen popsize pcross pmutate seed\n", argv[0]);
         fprintf(stderr, "Compiled for (%d, %d, %d)\n", R, S, NV);
         exit(EXIT_FAILURE);
     }
@@ -43,11 +44,11 @@ int main(int argc, char *argv[])
     seed    = atoi(argv[5]);
 
     R_init(seed);
-    SGA_init(&sga, popsize, NED, pcross, pmutate, seed);
+    SGA_init(&sga, popsize, NED, objfunc, pcross, pmutate, seed);
 
     sprintf(filename, "%d-%d-%d_%d.graph", R, S, NV, seed);
     printf("#%8s %9s %9s %9s %9s %9s %9s %9s\n",
-            "gen", "emin", "favg", "fvar", "fmax", "fmin", "ncross", "nmutation");
+            "gen", "emin", "favg", "fvar", "fmin", "fmax", "ncross", "nmutation");
 
     for (igen = 0; igen < ngen; igen++)
     {
@@ -60,8 +61,8 @@ int main(int argc, char *argv[])
                     -sga.objective[sga.fittest],
                     sga.favg,
                     sga.fvar,
-                    sga.fmax,
                     sga.fmin,
+                    sga.fmax,
                     ncross,
                     nmutation
                   );

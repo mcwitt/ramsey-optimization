@@ -1,7 +1,9 @@
 #include <stdio.h>
+#include "dSFMT.h"
 #include "ramsey.h"
 
-dsfmt_t R_rstate;
+#define RANDOM() dsfmt_genrand_close_open(&dsfmt)
+dsfmt_t dsfmt;
 
 /* subs[ei] (subr[ei]) lists the NSGFES (NSGFER) complete S-subgraphs
  * (R-subgraphs) that include edge ei */
@@ -21,7 +23,7 @@ static void free_tabs(int *sub[], int *edg[], int nsg);
 void R_init(uint32_t seed)
 {
     /* init random number generator */
-    dsfmt_init_gen_rand(&R_rstate, seed);
+    dsfmt_init_gen_rand(&dsfmt, seed);
 
     init_tabs(subr, edgr, R, NSGFER, nedr);
     init_tabs(subs, edgs, S, NSGFES, neds);
@@ -33,7 +35,7 @@ void R_finalize()
     free_tabs(subs, edgs, NSGS);
 }
 
-void R_init_replica(rep_t *p)
+void R_init_replica(R_replica_t *p)
 {
     int j;
 
@@ -48,7 +50,7 @@ void R_init_replica(rep_t *p)
     }
 }
 
-int R_init_replica_from_file(rep_t *p, char filename[])
+int R_init_replica_from_file(R_replica_t *p, char filename[])
 {
     FILE *fp;
     int sp, j, ned;
@@ -84,13 +86,13 @@ int R_init_replica_from_file(rep_t *p, char filename[])
     return j;
 }
 
-void R_randomize(rep_t *p, double p_red, int mask)
+void R_randomize(R_replica_t *p, double p_red, int mask)
 {
     int j;
 
     for (j = mask; j < NED; j++)
     {
-        if (R_RAND() < p_red)
+        if (RANDOM() < p_red)
         {
             p->en += p->sp[j]*p->h2[j];
             R_flip(p, j);
@@ -98,7 +100,7 @@ void R_randomize(rep_t *p, double p_red, int mask)
     }
 }
 
-void R_flip(rep_t *p, int iedg)
+void R_flip(R_replica_t *p, int iedg)
 {
     int isub, j, n;
     int *sp = p->sp;
