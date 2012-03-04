@@ -4,7 +4,7 @@
 #include "ramsey.h"
 #include "sga.h"
 
-void decode(int chrom[], int sp[])
+void decode(SGA_allele_t chrom[], int sp[])
 {
     int i;
 
@@ -12,7 +12,7 @@ void decode(int chrom[], int sp[])
         sp[i] = (chrom[i] == 1) ? 1 : -1;
 }
 
-double objfunc(int chrom[])
+double objfunc(SGA_allele_t chrom[])
 {
     int sp[NED];
 

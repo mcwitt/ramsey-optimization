@@ -107,8 +107,8 @@ static void preselect(double fitness[], double parts[],
 
 /* cross 2 parent strings at specified crossing site,
  * place in 2 child strings */
-static void crossover(allele_t parent1[], allele_t parent2[],
-                      allele_t child1[],  allele_t child2[],
+static void crossover(SGA_allele_t parent1[], SGA_allele_t parent2[],
+                      SGA_allele_t child1[],  SGA_allele_t child2[],
                       int lchrom, int xsite)
 {
     int i;
@@ -127,7 +127,8 @@ static void crossover(allele_t parent1[], allele_t parent2[],
 }
 
 /* flip each bit in a chromosome with probability pmutate */
-static void mutate(allele_t chrom[], int lchrom, double pmutate, int *nmutation)
+static void mutate(SGA_allele_t chrom[], int lchrom,
+                   double pmutate, int *nmutation)
 {
     int i;
 
@@ -142,7 +143,7 @@ static void mutate(allele_t chrom[], int lchrom, double pmutate, int *nmutation)
 }
 
 void SGA_init(SGA_t *sga, int popsize, int lchrom,
-              double (*objfunc)(allele_t*),
+              double (*objfunc)(SGA_allele_t*),
               double pcross, double pmutate, uint32_t seed)
 {
     double f;
@@ -192,10 +193,10 @@ void SGA_init(SGA_t *sga, int popsize, int lchrom,
 
 void SGA_advance(SGA_t *sga, int *ncross, int *nmutation)
 {
-    double f;
+    SGA_allele_t (*swap)[SGA_MAXPOPSIZE];
     double parts[SGA_MAXPOPSIZE];
+    double f;
     int i, mate1, mate2, xsite = 0;
-    int (*swap)[SGA_MAXPOPSIZE];
 
     *ncross    =  0;
     *nmutation =  0;
