@@ -12,12 +12,15 @@ void decode(SGA_allele_t chrom[], int sp[])
         sp[i] = (chrom[i] == 1) ? 1 : -1;
 }
 
+double fitfunc(double energy) { return 1./(energy + 1.); }
+//double fitfunc(double energy) { return -energy; }
+
 double objfunc(SGA_allele_t chrom[])
 {
     int sp[NED];
 
     decode(chrom, sp);
-    return -R_energy(sp);
+    return R_energy(sp);
 }
 
 int main(int argc, char *argv[])
@@ -25,10 +28,8 @@ int main(int argc, char *argv[])
     SGA_t sga;
     char filename[256];
     double pcross, pmutate;
-    int popsize;
     int sp[NED];
-    int igen, ngen, seed;
-    int ncross, nmutation;
+    int popsize, igen, ngen, ncross, nmutation, seed;
 
     if (argc != 6)
     {
@@ -44,21 +45,25 @@ int main(int argc, char *argv[])
     seed    = atoi(argv[5]);
 
     R_init(seed);
-    SGA_init(&sga, popsize, NED, objfunc, pcross, pmutate, seed);
-
+    SGA_init(&sga, popsize, NED, objfunc, fitfunc, pcross, pmutate, seed);
     sprintf(filename, "%d-%d-%d_%d.graph", R, S, NV, seed);
-    printf("#%8s %9s %9s %9s %9s %9s %9s %9s\n",
-            "gen", "emin", "favg", "fvar", "fmin", "fmax", "ncross", "nmutation");
 
     for (igen = 0; igen < ngen; igen++)
     {
         SGA_advance(&sga, &ncross, &nmutation);
 
-        if (igen % 10 == 0)
+        if (igen % 5 == 0)
         {
-            printf("%9d %9.3g %9.3g %9.3g %9.3g %9.3g %9d %9d\n",
+            if (igen % 100 == 0) 
+            {
+                printf("#%8s %9s %9s %9s %9s %9s %9s %9s\n",
+                       "gen", "emin", "favg", "fvar", "fmin", "fmax",
+                       "ncross", "nmutation");
+            }
+
+            printf("%9d %9.0f %9.3f %9.3g %9.3f %9.3f %9d %9d\n",
                     igen,
-                    -sga.objective[sga.fittest],
+                    sga.objective[sga.fittest],
                     sga.favg,
                     sga.fvar,
                     sga.fmin,
@@ -66,10 +71,11 @@ int main(int argc, char *argv[])
                     ncross,
                     nmutation
                   );
+
             fflush(stdout);
         }
 
-        if (-sga.objective[sga.fittest] < 10e-9) break;
+        if (sga.objective[sga.fittest] < 1e-9) break;
     }
 
     decode(sga.chrom[sga.fittest], sp);

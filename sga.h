@@ -14,20 +14,21 @@ typedef struct
     /* pointers to chromosome data for current and next generation */
     SGA_allele_t (*chrom)[SGA_MAXPOPSIZE], (*nextg)[SGA_MAXPOPSIZE];
 
-    double (*objfunc)(SGA_allele_t*);
+    double (*objfunc)(SGA_allele_t*);   /* pointer to objective function */
+    double (*fitfunc)(double);          /* pointer to fitness function */
 
-    double objective[SGA_MAXPOPSIZE];   /* raw value of objective function */
-    double fitness[SGA_MAXPOPSIZE];     /* scaled fitness */
+    double objective[SGA_MAXPOPSIZE];   /* objective function values */
+    double fitness[SGA_MAXPOPSIZE];     /* scaled fitnesses */
 
     int popsize, lchrom;
     double pcross, pmutate;
-    int fittest;
     double fmin, fmax, favg, fvar;
+    int fittest;
 } SGA_t;
 
 /* create a population of random individuals */
 void SGA_init(SGA_t *sga, int popsize, int lchrom,
-              double (*objfunc)(SGA_allele_t*),
+              double (*objfunc)(SGA_allele_t*), double (*fitfunc)(double),
               double pcross, double pmutate, uint32_t seed);
 
 /* advance one generation */
