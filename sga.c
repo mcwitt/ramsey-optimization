@@ -9,6 +9,7 @@
 #define C       2.0
 #define DELTA   0.0
 #define EPSILON 10e-15  /* set to roughly machine precision */
+//#define SGA_C2
 
 #define RANDOM() dsfmt_genrand_close_open(&dsfmt)
 #define RND(l, u) (u-l)*RANDOM() + l
@@ -107,28 +108,75 @@ static void preselect(double fitness[], double parts[],
     for (i = 1; i < popsize; i++) parts[i] = parts[i-1] + fitness[i]/sumfitness;
 }
 
-/* 
- * do 1-point crossover of 2 parent strings at specified crossing site, place
- * results in 2 child strings
+/*
+ * do 2-point crossover of 2 parent strings using specified crossing sites
+ * x1 < x2, place results in 2 child strings
  */
-static void crossover(SGA_allele_t parent1[], SGA_allele_t parent2[],
-                      SGA_allele_t child1[],  SGA_allele_t child2[],
-                      int lchrom, int xsite)
+static void cross(SGA_allele_t parent1[], SGA_allele_t parent2[],
+                  SGA_allele_t child1[],  SGA_allele_t child2[],
+                  int lchrom, int x1, int x2)
 {
     int i;
 
-    for (i = 0; i < xsite; i++)
+    for (i = 0; i < x1; i++)
     {
         child1[i] = parent1[i];
         child2[i] = parent2[i];
     }
-
-    for (; i < lchrom; i++)
+    
+    for (; i < x2; i++)
     {
         child1[i] = parent2[i];
         child2[i] = parent1[i];
     }
+
+    for (; i < lchrom; i++)
+    {
+        child1[i] = parent1[i];
+        child2[i] = parent2[i];
+    }
 }
+
+/* 
+ * with probability pcross, do 1-point crossover of 2 parent strings using
+ * random crossing site, place results in 2 child strings; otherwise copy
+ * parent strings
+ */
+#ifndef SGA_C2
+static void crossover(SGA_allele_t parent1[], SGA_allele_t parent2[],
+                      SGA_allele_t child1[],  SGA_allele_t child2[],
+                      int lchrom, double pcross, int *ncross)
+{
+    int xsite;
+
+    if (RANDOM() < pcross) { xsite = RND(1, lchrom-1); *ncross += 1; }
+    else xsite = lchrom;    /* copy without crossover */
+    cross(parent1, parent2, child1, child2, lchrom, xsite, lchrom);
+}
+
+/* 
+ * with probability pcross, do 2-point crossover of 2 parent strings using
+ * random crossing sites, place results in 2 child strings; otherwise copy
+ * parent strings
+ */
+#else
+static void crossover2(SGA_allele_t parent1[], SGA_allele_t parent2[],
+                       SGA_allele_t child1[],  SGA_allele_t child2[],
+                       int lchrom, double pcross, int *ncross)
+{
+    int x1, x2, swap;
+
+    if (RANDOM() < pcross)
+    {
+        x1 = RND(1, lchrom-1);
+        x2 = RND(1, lchrom-1);
+        if (x1 > x2) { swap = x1; x1 = x2; x2 = swap; }
+        *ncross += 1;
+    }
+    else x1 = x2 = lchrom;
+    cross(parent1, parent2, child1, child2, lchrom, x1, x2);
+}
+#endif
 
 /* flip each bit in a chromosome with probability pmutate */
 static void mutate(SGA_allele_t chrom[], int lchrom,
@@ -215,7 +263,7 @@ void SGA_advance(SGA_t *sga, int *ncross, int *nmutation)
 {
     SGA_allele_t (*swap)[SGA_MAXPOPSIZE];
     double parts[SGA_MAXPOPSIZE];
-    int i, mate1, mate2, xsite = 0;
+    int i, mate1, mate2;
 
     *ncross    = 0;
     *nmutation = 0;
@@ -230,16 +278,15 @@ void SGA_advance(SGA_t *sga, int *ncross, int *nmutation)
         mate2 = select_mate(parts, sga->popsize);
 
         /* do crossover with probability pcross */
-        if (RANDOM() < sga->pcross)
-        {
-            xsite = RND(1, sga->lchrom-1);
-            *ncross += 1;
-        }
-        else xsite = sga->lchrom; /* copy without crossover */
-
+#ifndef SGA_C2
         crossover(sga->chrom[mate1], sga->chrom[mate2],
                   sga->nextg[i], sga->nextg[i+1],
-                  sga->lchrom, xsite);
+                  sga->lchrom, sga->pcross, ncross);
+#else
+        crossover2(sga->chrom[mate1], sga->chrom[mate2],
+                   sga->nextg[i], sga->nextg[i+1],
+                   sga->lchrom, sga->pcross, ncross);
+#endif
 
         mutate(sga->nextg[i  ], sga->lchrom, sga->pmutate, nmutation);
         mutate(sga->nextg[i+1], sga->lchrom, sga->pmutate, nmutation);

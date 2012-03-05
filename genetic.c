@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
     SGA_init(&sga, popsize, NED, objfunc, fitfunc, pcross, pmutate, seed);
     sprintf(filename, "%d-%d-%d_%d.graph", R, S, NV, seed);
 
-    for (igen = 0; igen < ngen; igen++)
+    for (igen = 0; igen <= ngen; igen++)
     {
         SGA_advance(&sga, &ncross, &nmutation);
 
@@ -61,7 +61,7 @@ int main(int argc, char *argv[])
                        "ncross", "nmutation");
             }
 
-            printf("%9d %9.0f %9.3f %9.3g %9.3f %9.3f %9d %9d\n",
+            printf("%9d %9.0f %9.3g %9.3g %9.3g %9.3g %9d %9d\n",
                     igen,
                     sga.objective[sga.fittest],
                     sga.favg,
