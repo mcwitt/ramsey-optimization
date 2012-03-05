@@ -9,7 +9,11 @@
 #define C       2.0
 #define DELTA   0.0
 #define EPSILON 10e-15  /* set to roughly machine precision */
-//#define SGA_C2
+/*#define C2*/    /* use 2-point crossover if defined */
+
+#ifdef C2
+#warning Using 2-point crossover
+#endif
 
 #define RANDOM() dsfmt_genrand_close_open(&dsfmt)
 #define RND(l, u) (u-l)*RANDOM() + l
@@ -142,7 +146,7 @@ static void cross(SGA_allele_t parent1[], SGA_allele_t parent2[],
  * random crossing site, place results in 2 child strings; otherwise copy
  * parent strings
  */
-#ifndef SGA_C2
+#ifndef C2
 static void crossover(SGA_allele_t parent1[], SGA_allele_t parent2[],
                       SGA_allele_t child1[],  SGA_allele_t child2[],
                       int lchrom, double pcross, int *ncross)
@@ -278,7 +282,7 @@ void SGA_advance(SGA_t *sga, int *ncross, int *nmutation)
         mate2 = select_mate(parts, sga->popsize);
 
         /* do crossover with probability pcross */
-#ifndef SGA_C2
+#ifndef C2
         crossover(sga->chrom[mate1], sga->chrom[mate2],
                   sga->nextg[i], sga->nextg[i+1],
                   sga->lchrom, sga->pcross, ncross);
