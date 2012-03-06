@@ -102,7 +102,7 @@ int main(int argc, char *argv[])
     for (irun = 0; irun < nrun; irun++)
     {
         /* print column names */
-        printf("# %3s %8s %8s %8s %8s %12s %8s\n",
+        printf("# %3s %8s %8s %8s %10s %12s %8s\n",
             "run", "stage", "nsweep", "T", "a.r.", "emin_stage", "emin");
 
         R_randomize(&r, (double) R/(R+S), mask);   /* randomize free spins */
@@ -137,7 +137,7 @@ int main(int argc, char *argv[])
             }
 
             /* print stage stats */
-            printf("%5d %8d %8d %8.5f %8.5f %12d %8d\n",
+            printf("%5d %8d %8d %10.2e %8.5f %12d %8d\n",
                     irun, istage, nsweep, T,
                     (double) nflip/NED/(isweep+1),
                     emin_stage, emin);
