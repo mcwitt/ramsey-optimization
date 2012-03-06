@@ -42,7 +42,7 @@ if __name__=='__main__':
     for i in xrange(len(files)):
         fname = files[i]
 
-        data = np.loadtxt(fname, usecols=[0,3,7],
+        data = np.loadtxt(fname, usecols=[0,2,6],
                 dtype=[ ('run', 'i4'), ('dmax','i4'), ('emin','i4') ])
 
         fmt = '%s-%s' % (colors[i % len(colors)], markers[i % len(markers)])

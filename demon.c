@@ -92,7 +92,6 @@ int main(int argc, char *argv[])
         mask = 0;
     }
 
-    /* BEGIN SIMULATION */
     emin = INT_MAX;
 
     for (irun = 0; irun < nrun; irun++)

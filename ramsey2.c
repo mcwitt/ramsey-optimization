@@ -1,23 +1,29 @@
 #include <stdio.h>
+#include "dSFMT.h"
 #include "ramsey2.h"
 
-dsfmt_t R_rstate;
+#define RANDOM() dsfmt_genrand_close_open(&dsfmt)
+dsfmt_t dsfmt;
 
 /* subs[ei] (subr[ei]) lists the NSGFES (NSGFER) complete S-subgraphs
  * (R-subgraphs) that include edge ei */
 int *subr[NED];
 int *subs[NED];
 
-static void init_tabs(int *sub[], int t, int nsgfe);
+/* edgs[isub] (edgr[isub]) lists the edges of S-subgraph (R-subgraph) isub */
+int *edgr[NSGR];
+int *edgs[NSGS];
+
+static void init_tabs(int *sub[], int *edg[], int t, int nsgfe, int nedt);
 static void free_tabs(int *sub[]);
 
 void R_init(uint32_t seed)
 {
     /* init random number generator */
-    dsfmt_init_gen_rand(&R_rstate, seed);
+    dsfmt_init_gen_rand(&dsfmt, seed);
 
-    init_tabs(subr, R, NSGFER);
-    init_tabs(subs, S, NSGFES);
+    init_tabs(subr, edgr, R, NSGFER, NEDR);
+    init_tabs(subs, edgs, S, NSGFES, NEDS);
 }
 
 void R_finalize()
@@ -26,7 +32,7 @@ void R_finalize()
     free_tabs(subs);
 }
 
-void R_init_replica(rep_t *p)
+void R_init_replica(R_replica_t *p)
 {
     int j;
 
@@ -41,7 +47,7 @@ void R_init_replica(rep_t *p)
     p->en = (double) NSGS;
 }
 
-int R_init_replica_from_file(rep_t *p, char filename[])
+int R_init_replica_from_file(R_replica_t *p, char filename[])
 {
     FILE *fp;
     int sp, j, ned;
@@ -78,13 +84,13 @@ int R_init_replica_from_file(rep_t *p, char filename[])
     return j;
 }
 
-void R_randomize(rep_t *p, double p_red, int mask)
+void R_randomize(R_replica_t *p, double p_red, int mask)
 {
     int j;
 
     for (j = mask; j < NED; j++)
     {
-        if (R_RAND() < p_red)
+        if (RANDOM() < p_red)
         {
             p->en += R_flip_energy(p, j);
             p->sp[j] *= -1;
@@ -93,7 +99,7 @@ void R_randomize(rep_t *p, double p_red, int mask)
     }
 }
 
-double R_flip_energy(rep_t *p, int iedge)
+double R_flip_energy(R_replica_t *p, int iedge)
 {
     double en = 0.;
     int isub;
@@ -126,7 +132,7 @@ double R_flip_energy(rep_t *p, int iedge)
     return en;
 }
 
-void R_update(rep_t *p, int iedge)
+void R_update(R_replica_t *p, int iedge)
 {
     int isub, sp = p->sp[iedge];
 
@@ -139,7 +145,7 @@ void R_update(rep_t *p, int iedge)
         p->nr[subs[iedge][isub]] -= sp;
 }
 
-void R_set_energies(rep_t *p, double er[], double es[])
+void R_set_energies(R_replica_t *p, double er[], double es[])
 {
     int j;
 
@@ -176,68 +182,88 @@ void R_save_graph(int sp[NED], char filename[])
     fclose(fp);
 }
 
-static void init_tabs(int *sub[], int t, int nsgfe)
+double R_energy(int sp[NED], double er[NEDR+1], double es[NEDS+1])
 {
-    int ps[NED];    /* current positions in subgraph arrays */
-    int c[S+2];     /* array of vertices of the current subgraph */
-    int ei, si;     /* edge index, subgraph index */
+    double energy = 0.;
+    int isub, iedg, sum;
+
+    for (isub = 0; isub < NSGR; isub++)
+    {
+        sum = 0;
+        for (iedg = 0; iedg < NEDR; iedg++) sum += sp[edgr[isub][iedg]];
+        energy += er[(NEDR+sum)>>1];
+    }
+
+    for (isub = 0; isub < NSGS; isub++)
+    {
+        sum = 0;
+        for (iedg = 0; iedg < NEDS; iedg++) sum += sp[edgs[isub][iedg]];
+        energy += es[(NEDS-sum)>>1];
+    }
+
+    return energy;
+}
+
+static void init_tabs(int *sub[], int *edg[], int t, int nsgfe, int nedt)
+{
+    int nsub[NED];  /* number of subgraphs processed for each edge */
+    int nedg;       /* number of edges of the current subgraph processed */
+    int v[S+2];     /* vertices of the current subgraph */
+    int iedg, isub; /* edge and subgraph indices */
     int j, k;
 
     for (j = 0; j < NED; j++)
     {
         sub[j] = (int*) malloc(nsgfe * sizeof(int));
-        ps[j] = 0;
+        nsub[j] = 0;
     }
 
     /* 
-     * iterate over all subgraphs with t vertices
-     */
-
-    /*
-     * algorithm to generate combinations adapted from Algorithm L in Knuth's
+     * Iterate over all subgraphs with t vertices (i.e. combinations of t
+     * vertices)
+     *
+     * Algorithm to generate combinations adapted from Algorithm L in Knuth's
      * Art of Computer Programming Vol. 4, Fasc. 3 (all-caps labels
      * correspond to labels in the book)
      */
 
     /* INITIALIZE */
-    si = 0;
-    c[t] = NV;
-    c[t+1] = 0;
-    for (j = 0; j < t; j++) c[j] = j;
+    isub = 0;
+    v[t] = NV;
+    v[t+1] = 0;
+    for (j = 0; j < t; j++) v[j] = j;
 
     while (1)
     {
         /*
-         * VISIT combination c_1 c_2 ... c_t
-         * (algorithm guarantees that c_1 < c_2 < ... < c_t)
+         * VISIT subgraph v_1 v_2 ... v_t
+         * (algorithm guarantees that v_1 < v_2 < ... < v_t)
          */
 
+        edg[isub] = (int*) malloc(nedt * sizeof(int));
+        nedg = 0;
+
         /* iterate over edges in this subgraph */
-        for (k = 0; k < t; k++)
+        for (j = 0; j < t; j++)
         {
-            for (j = 0; j < k; j++)
+            for (k = 0; k < j; k++)
             {
-                ei = c[k]*(c[k]-1)/2 + c[j];
-
-                /*
-                 * add subgraph si to list for edge ei
-                 * add edge ei to list for subgraph si
-                 */
-
-                sub[ei][ps[ei]++] = si;
+                iedg = v[j]*(v[j]-1)/2 + v[k];
+                sub[iedg][nsub[iedg]++] = isub; /* append isub to sub[iedg] */
+                edg[isub][nedg++] = iedg;       /* append iedg to edg[isub] */
             }
         }
 
-        si++;   /* finished with this subgraph, increment label */
+        isub++;   /* increment subgraph label */
 
         /* FIND j */
         j = 0;
-        while (c[j] + 1 == c[j+1]) { c[j] = j; j++; }
+        while (v[j] + 1 == v[j+1]) { v[j] = j; j++; }
 
         /* DONE? */
         if (j == t) break;
 
-        c[j]++;
+        v[j]++;
     }
 }
 

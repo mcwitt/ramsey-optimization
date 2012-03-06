@@ -11,13 +11,13 @@
 #include <limits.h>
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include "ramsey2.h"
-/*#include "debug_energy.c"*/
 
 #define WRITE_MAX 500.  /* only save graph when energy is below this value */
 #define NRUN_MAX 100
 
-rep_t r;
+R_replica_t r;
 double e_demon;
 
 #if defined(LINEAR)

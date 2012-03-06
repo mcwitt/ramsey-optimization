@@ -10,12 +10,13 @@
 #include <limits.h>
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include "ramsey2.h"
 
 #define WRITE_MAX 500.  /* only save graph when energy is below this value */
 #define NRUN_MAX 100
 
-rep_t r;
+R_replica_t r;
 double e_demon;
 
 #if defined(LINEAR)
@@ -65,7 +66,7 @@ int main(int argc, char *argv[])
 {
     char filename[256];
     double er[NEDR+1], es[NEDS+1];
-    int nsweep_ini, nstage, nrun;
+    int nsweep_min, nsweep_max, nstage, nrun;
     double emax_demon_ini, sweep_mult;
 
     int mask;
@@ -76,19 +77,20 @@ int main(int argc, char *argv[])
 
     if (argc != 7 && argc != 8)
     {
-        fprintf(stderr, "Usage: %s emax_demon_ini nsweep_ini sweep_mult"
+        fprintf(stderr, "Usage: %s emax_demon_ini nsweep_min nsweep_max"
                 " nstage nrun seed [partial_config]\n", argv[0]);
         fprintf(stderr, "Compiled for (%d, %d, %d)\n", R, S, NV);
         exit(EXIT_FAILURE);
     }
 
     emax_demon_ini = atof(argv[1]);
-    nsweep_ini = atoi(argv[2]);
-    sweep_mult = atof(argv[3]);
+    nsweep_min = atoi(argv[2]);
+    nsweep_max = atoi(argv[3]);
     nstage = atoi(argv[4]);
     nrun = atoi(argv[5]);
     seed = atoi(argv[6]);
 
+    sweep_mult = pow((double) nsweep_max / nsweep_min, 1./nstage);
     sprintf(filename, "%d-%d-%d_%d.graph", R, S, NV, seed);
     
     R_init(seed);
@@ -112,7 +114,6 @@ int main(int argc, char *argv[])
         mask = 0;
     }
 
-    /* BEGIN SIMULATION */
     emin = 10e9;
 
     for (irun = 0; irun < nrun; irun++)
@@ -123,7 +124,7 @@ int main(int argc, char *argv[])
             "a.r.", "nflip/spin", "emin_stage", "emin");
 
         R_randomize(&r, (double) R/(R+S), mask);   /* randomize free spins */
-        nsweep = nsweep_ini;
+        nsweep = nsweep_min;
         e_demon = emax_demon = emax_demon_ini;
 
         for (j = 0; j < NEDR+1; j++) er[j] = er_ini[j];

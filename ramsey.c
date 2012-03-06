@@ -218,20 +218,20 @@ void R_save_graph(int sp[NED], char filename[])
 
 int R_energy(int sp[NED])
 {
-    int isub, iedg, edgsum, energy = 0;
+    int isub, iedg, sum, energy = 0;
 
     for (isub = 0; isub < NSGR; isub++)
     {
-        edgsum = 0;
-        for (iedg = 0; iedg < nedr; iedg++) edgsum += sp[edgr[isub][iedg]];
-        if (edgsum == -nedr) energy++;
+        sum = 0;
+        for (iedg = 0; iedg < nedr; iedg++) sum += sp[edgr[isub][iedg]];
+        if (sum == -nedr) energy++;
     }
 
     for (isub = 0; isub < NSGS; isub++)
     {
-        edgsum = 0;
-        for (iedg = 0; iedg < neds; iedg++) edgsum += sp[edgs[isub][iedg]];
-        if (edgsum == neds) energy++;
+        sum = 0;
+        for (iedg = 0; iedg < neds; iedg++) sum += sp[edgs[isub][iedg]];
+        if (sum == neds) energy++;
     }
 
     return energy;
