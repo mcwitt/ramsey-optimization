@@ -48,7 +48,7 @@ int sweep()
 int main(int argc, char *argv[])
 {
     char filename[256];
-    double T_ini, sweep_mult;
+    double T_max, T_min, T_mult, sweep_mult;
     int nsweep_min, nsweep_max, nstage, nrun;
     int irun, istage, isweep;
     int nsweep, nflip;
@@ -56,28 +56,30 @@ int main(int argc, char *argv[])
     int mask;
     uint32_t seed;
 
-    if (argc != 7 && argc != 8)
+    if (argc != 8 && argc != 9)
     {
-        fprintf(stderr, "Usage: %s T_ini nsweep_min nsweep_max"
+        fprintf(stderr, "Usage: %s T_max T_min nsweep_min nsweep_max"
                 " nstage nrun seed [partial_config]\n", argv[0]);
         fprintf(stderr, "Compiled for (%d, %d, %d)\n", R, S, NV);
         exit(EXIT_FAILURE);
     }
 
-    T_ini = atof(argv[1]);
-    nsweep_min = atoi(argv[2]);
-    nsweep_max = atoi(argv[3]);
-    nstage = atoi(argv[4]);
-    nrun = atoi(argv[5]);
-    seed = atoi(argv[6]);
+    T_max = atof(argv[1]);
+    T_min = atof(argv[2]);
+    nsweep_min = atoi(argv[3]);
+    nsweep_max = atoi(argv[4]);
+    nstage = atoi(argv[5]);
+    nrun = atoi(argv[6]);
+    seed = atoi(argv[7]);
 
+    T_mult = pow(T_min / T_max, 1./nstage);
     sweep_mult = pow((double) nsweep_max / nsweep_min, 1./nstage);
     sprintf(filename, "%d-%d-%d_%d.graph", R, S, NV, seed);
     
     dsfmt_init_gen_rand(&dsfmt, seed);
     R_init(seed);
 
-    if (argc == 8)
+    if (argc == 9)
     {
         /*
          * load configuration from file and set mask to prevent spins
@@ -96,24 +98,22 @@ int main(int argc, char *argv[])
         mask = 0;
     }
 
-    /* BEGIN SIMULATION */
     emin = INT_MAX;
 
     for (irun = 0; irun < nrun; irun++)
     {
         /* print column names */
-        printf("# %3s %8s %8s %8s %10s %12s %8s\n",
+        printf("# %3s %8s %8s %10s %8s %12s %8s\n",
             "run", "stage", "nsweep", "T", "a.r.", "emin_stage", "emin");
 
         R_randomize(&r, (double) R/(R+S), mask);   /* randomize free spins */
         nsweep = nsweep_min;
-        T = T_ini;
+        T = T_max;
 
         for (istage = nstage; istage >= 0; istage--)
         {
             nflip = 0;
             emin_stage = INT_MAX;
-            T *= (double) istage / nstage;
 
             for (isweep = 0; isweep < nsweep; isweep++)
             {
@@ -144,6 +144,7 @@ int main(int argc, char *argv[])
             fflush(stdout);
 
             if (emin == 0) break;
+            T *= T_mult;
             nsweep *= sweep_mult;
         }
 
