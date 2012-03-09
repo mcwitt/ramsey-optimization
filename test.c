@@ -1,7 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include "dSFMT.h"
 #include "ramsey.h"
+
+#define RANDOM() dsfmt_genrand_close_open(&dsfmt)
 
 int clique_count(int sp[], int nv, int color, int t)
 {
@@ -44,18 +47,19 @@ int energy(int sp[], int nv, int r, int s)
 
 int main()
 {
-    R_replica_t r;
-    int i;
-    uint32_t seed = 0;
+    dsfmt_t dsfmt;
+    int sp[NED];
+    int i, j;
+    uint32_t seed = 123;
 
     R_init(seed);
+    dsfmt_init_gen_rand(&dsfmt, seed);
 
     for (i = 0; i < 50; i++)
     {
-        R_init_replica(&r);
-        R_randomize(&r, 0.5, 0);
-        //printf("%d\n", energy(r.sp, NV, R, S));
-        printf("%d\n", R_energy(r.sp));
+        for (j = 0; j < NED; j++) sp[j] = (RANDOM() < 0.5) ? -1 : 1;
+        printf("%d\n", energy(sp, NV, R, S));
+        //printf("%d\n", R_energy(sp));
     }
 
     return EXIT_SUCCESS;

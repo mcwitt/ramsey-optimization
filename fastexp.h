@@ -2,6 +2,8 @@
 
 #include <math.h>
 
+#define LITTLE_ENDIAN
+
 static union
 {
     double d;

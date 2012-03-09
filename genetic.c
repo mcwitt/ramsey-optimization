@@ -12,8 +12,8 @@ void decode(SGA_allele_t chrom[], int sp[])
         sp[i] = (chrom[i] == 1) ? 1 : -1;
 }
 
-double fitfunc(double energy) { return 1./(energy + 1.); }
-//double fitfunc(double energy) { return -energy; }
+//double fitfunc(double energy) { return 1./(energy + 1.); }
+double fitfunc(double energy) { return -energy; }
 
 double objfunc(SGA_allele_t chrom[])
 {
