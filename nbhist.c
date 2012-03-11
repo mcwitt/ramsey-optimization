@@ -26,7 +26,7 @@ void accumulate(double count_sum[], double count2_sum[], int sp[], int nv, int t
     c[t+1] = 0;
     for (j = 0; j < t; j++) c[j] = j;
 
-    while (1)
+    for (;;)
     {
         sum = 0;
 
