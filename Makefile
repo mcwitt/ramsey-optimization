@@ -7,7 +7,7 @@ CFLAGS = -Wall -std=gnu99 -O3 $(dsfmt_flags)
 #CFLAGS = -Wall -std=gnu99 -O3 $(dsfmt_flags) -g
 LDFLAGS = -lm
 
-all: $(sims) energy.out test.out
+all: $(sims) energy.out
 
 %.out: %.o
 	$(CC) $^ $(CFLAGS) $(LDFLAGS) -o $@

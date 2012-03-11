@@ -233,7 +233,7 @@ static void init_tabs(int *sub[], int *edg[], int t, int nsgfe, int nedt)
     v[t+1] = 0;
     for (j = 0; j < t; j++) v[j] = j;
 
-    while (1)
+    for (;;)
     {
         /*
          * VISIT subgraph v_1 v_2 ... v_t
