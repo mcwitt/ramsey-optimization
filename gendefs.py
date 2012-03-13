@@ -29,6 +29,7 @@ f = open(outfile, 'w')
 f.write('/* This file is generated automatically by gendefs.py */\n')
 
 for item in params:
-    f.write('#define {:<8} {:<10} /* {} */\n'.format(*item))
+    f.write('#define %-8s %-10d /* %s */\n' % item)
+    #f.write('#define {:<8} {:<10} /* {} */\n'.format(*item))
 
 f.close()
