@@ -1,22 +1,23 @@
-/* Code adapted from Numerical Recipes in C (2nd Ed.) */
+/* Code adapted from Numerical Recipes in C (2nd & 3rd Eds.) */
 
-#include "quickselect.h"
+#include "qselect.h"
 
 #define SWAP(a,b) { temp=(a); (a)=(b); (b)=temp; }
 
-double quickselect(unsigned long k, unsigned long n, double arr[])
+double qselect(unsigned long k, unsigned long n, double arr[])
 /*
- * Returns the kth smallest value in the array arr[1..n]. The input array will
- * be rearranged to have this value in location arr[k], with all smaller
- * elements moved to arr[1..k-1] (in arbitrary order) and all larger elements
- * in arr[k+1..n] (also in arbitrary order).
+ * Given k in [0..n-1] returns an array value from arr[0..n-1] such that k
+ * array values are less than or equal to the one returned. The input array
+ * will be rearranged to have this value in location arr[k], with all smaller
+ * elements movd to arr[0..k-1] (in arbitrary order) and all larger elements in
+ * arr[k+1..n-1] (also in arbitrary order).
  */
 {
     unsigned long i, ir, j, l, mid;
     double a, temp;
 
-    l = 1;
-    ir = n;
+    l = 0;
+    ir = n-1;
 
     for (;;) {
         if (ir <= l+1) {    /* Active partition contains 1 or 2 elements */
@@ -31,9 +32,13 @@ double quickselect(unsigned long k, unsigned long n, double arr[])
              */
             mid = (l+ir) >> 1;
             SWAP(arr[mid], arr[l+1]);
-            if (arr[l  ] > arr[ir ]) SWAP(arr[l  ], arr[ir ]);
-            if (arr[l+1] > arr[ir ]) SWAP(arr[l+1], arr[ir ]);
-            if (arr[l  ] > arr[l+1]) SWAP(arr[l  ], arr[l+1]);
+            if (arr[l] > arr[ir])
+                SWAP(arr[l], arr[ir]);
+            if (arr[l+1] > arr[ir])
+                SWAP(arr[l+1], arr[ir]);
+            if (arr[l] > arr[l+1])
+                SWAP(arr[l], arr[l+1]);
+
             i = l+1;                /* Initialize pointers for partitioning */
             j = ir;
             a = arr[l+1];           /* Partitioning element */
@@ -51,14 +56,14 @@ double quickselect(unsigned long k, unsigned long n, double arr[])
     }
 }
 
-unsigned long quickselect_index(unsigned long k, unsigned long n, double arr[])
+unsigned long qselect_index(unsigned long k, unsigned long n, double arr[])
 /* Returns the index of the kth smallest value in the array arr[1..n] */
 {
     unsigned long i, ir, j, l, mid, temp, tab[QSELECT_MAXLEN];
     double a;
 
-    l = 1;
-    ir = n;
+    l = 0;
+    ir = n-1;
 
     while (--n) tab[n] = n;   /* Initialize index table */
     tab[0] = 0;
@@ -76,9 +81,13 @@ unsigned long quickselect_index(unsigned long k, unsigned long n, double arr[])
              */
             mid = (l+ir) >> 1;
             SWAP(tab[mid], tab[l+1]);
-            if (arr[tab[l  ]] > arr[tab[ir ]]) SWAP(tab[l  ], tab[ir ]);
-            if (arr[tab[l+1]] > arr[tab[ir ]]) SWAP(tab[l+1], tab[ir ]);
-            if (arr[tab[l  ]] > arr[tab[l+1]]) SWAP(tab[l  ], tab[l+1]);
+            if (arr[tab[l]] > arr[tab[ir]])
+                SWAP(tab[l], tab[ir]);
+            if (arr[tab[l+1]] > arr[tab[ir]])
+                SWAP(tab[l+1], tab[ir]);
+            if (arr[tab[l]] > arr[tab[l+1]])
+                SWAP(tab[l], tab[l+1]);
+
             i = l+1;                /* Initialize pointers for partitioning */
             j = ir;
             a = arr[tab[l+1]];      /* Partitioning element */
