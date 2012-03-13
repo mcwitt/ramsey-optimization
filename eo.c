@@ -99,7 +99,7 @@ int main(int argc, char *argv[])
 
     emin = INT_MAX;
 
-    printf("%5s %6s\n", "iter", "emin");
+    printf("%12s %6s\n", "iter/N_edge", "emin");
 
     for (iupdate = 0; iupdate < nupdate; iupdate++)
     {
@@ -126,9 +126,9 @@ int main(int argc, char *argv[])
             }
         }
 
-        if (iupdate % 1000 == 0)
+        if (iupdate % NED == 0)
         {
-            printf("%5d %6d\n", iupdate, emin);
+            printf("%12d %6d\n", iupdate/NED, emin);
             fflush(stdout);
         }
     }
