@@ -26,22 +26,22 @@ R_replica_t r;
 dsfmt_t dsfmt;
 
 /* compute the discrete cumulative probabity distribution corresponding to
- * P(n) = exp(-tau*n) */
+ * P(k) = 1/k^tau */
 void set_cdf(double tau, double cdf[])
 {
     double sum;
-    int i;
+    int k;
 
     sum = 0.;
-    for (i = 0; i < NED; i++)
-        sum += (cdf[i] = exp(-tau*i));
+    for (k = 0; k < NED; k++)
+        sum += (cdf[k] = pow(k+1, -tau));
     cdf[0] /= sum;
-    for (i = 1; i < NED; i++)
-        cdf[i] = cdf[i-1] + cdf[i]/sum;
+    for (k = 1; k < NED; k++)
+        cdf[k] = cdf[k-1] + cdf[k]/sum;
 
     /*debug
-    for (i = 0; i < NED; i++)
-        printf("%f\n",cdf[i]);
+    for (k = 0; k < NED; k++)
+        printf("%f\n",cdf[k]);
     exit(0);*/
 }
 
@@ -115,12 +115,6 @@ int main(int argc, char *argv[])
         r.en += lambda[j];
         R_flip(&r, j);
 
-        if (iupdate % 1000 == 0)
-        {
-            printf("%5d %6d\n", iupdate, emin);
-            fflush(stdout);
-        }
-
         if (r.en < emin)
         {
             emin = r.en;
@@ -130,6 +124,12 @@ int main(int argc, char *argv[])
                 R_save_graph(r.sp, filename);
                 if (emin == 0) break;
             }
+        }
+
+        if (iupdate % 1000 == 0)
+        {
+            printf("%5d %6d\n", iupdate, emin);
+            fflush(stdout);
         }
     }
 
