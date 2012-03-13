@@ -11,8 +11,11 @@
  */
 
 #include <limits.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "dSFMT.h"
+#include "qselect.h"
 #include "ramsey.h"
 
 #define WRITE_MAX 10  /* only save graph when energy is below this value */
@@ -20,6 +23,27 @@
 #define RANDOM() dsfmt_genrand_close_open(&dsfmt)
 
 R_replica_t r;
+dsfmt_t dsfmt;
+
+/* compute the discrete cumulative probabity distribution corresponding to
+ * P(n) = exp(-tau*n) */
+void set_cdf(double tau, double cdf[])
+{
+    double sum;
+    int i;
+
+    sum = 0.;
+    for (i = 0; i < NED; i++)
+        sum += (cdf[i] = exp(-tau*i));
+    cdf[0] /= sum;
+    for (i = 1; i < NED; i++)
+        cdf[i] = cdf[i-1] + cdf[i]/sum;
+
+    /*debug
+    for (i = 0; i < NED; i++)
+        printf("%f\n",cdf[i]);
+    exit(0);*/
+}
 
 /* return the insertion point for x to maintain sorted order of a */
 int bisect(double a[], double x, int l, int r)
@@ -39,8 +63,9 @@ int bisect(double a[], double x, int l, int r)
 int main(int argc, char *argv[])
 {
     char filename[256];
-    double tau;
-    int nupdate, iupdate, emin;
+    double tau, cdf[NED];
+    int lambda[NED];
+    int nupdate, iupdate, j, k, emin;
     uint32_t seed;
 
     if (argc != 4 && argc != 5)
@@ -59,6 +84,7 @@ int main(int argc, char *argv[])
     
     R_init(seed);
     dsfmt_init_gen_rand(&dsfmt, seed);
+    set_cdf(tau, cdf);
 
     if (argc == 5)
     {   /* load configuration from file */
@@ -73,30 +99,41 @@ int main(int argc, char *argv[])
 
     emin = INT_MAX;
 
-    /* 
-    printf("# %3s %8s %12s %12s %8s %10s %12s %8s\n",
-        "run", "nsweep", "emax_demon", "e_demon_av",
-        "a.r.", "nflip/spin", "emin_stage", "emin");
-    */
+    printf("%5s %6s\n", "iter", "emin");
 
     for (iupdate = 0; iupdate < nupdate; iupdate++)
     {
-        
 
-        /*
-        printf("%5d %8d %12d %12.2f %8.5f %10.2f %12d %8d\n",
-                irun, nsweep, emax_demon,
-                (double) e_demon_av/(isweep+1),
-                (double) nflip/NED/(isweep+1),
-                (double) nflip/NED,
-                emin_stage, emin);
-        fflush(stdout);
-        */
+        /* compute fitness value for each spin */
+        for (j = 0; j < NED; j++) lambda[j] = r.sp[j]*r.h2[j];
 
+        /* choose random integer k in [0..NED-1] from distribution */
+        k = bisect(cdf, RANDOM(), 0, NED);
 
-        if (emin == 0) break;
+        /* flip the kth "worst" spin */
+        j = qselect_index(k, NED, lambda);
+        r.en += lambda[j];
+        R_flip(&r, j);
+
+        if (iupdate % 1000 == 0)
+        {
+            printf("%5d %6d\n", iupdate, emin);
+            fflush(stdout);
+        }
+
+        if (r.en < emin)
+        {
+            emin = r.en;
+
+            if (emin < WRITE_MAX)
+            {
+                R_save_graph(r.sp, filename);
+                if (emin == 0) break;
+            }
+        }
     }
 
+    printf("%5d %6d\n", iupdate, emin);
     R_finalize();
     return (emin == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }

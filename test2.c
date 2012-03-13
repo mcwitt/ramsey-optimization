@@ -2,25 +2,25 @@
 #include <stdio.h>
 #include "qselect.h"
 
-#define MAXLEN 2000
+#define MAXLEN QSELECT_MAXLEN
 
 int cmp(const void *a, const void *b) {
-    return (*(double*)a < *(double*)b) ? -1 : 1;
+    return *(int*)a - *(int*)b;
 }
 
 int cmp_index(void *thunk, const void *a, const void *b) {
-    double *arr = (double*) thunk;
+    int *arr = (int*) thunk;
     int ia = *(int*)a, ib = *(int*)b;
-    return (arr[ia] < arr[ib]) ? -1 : 1;
+    return arr[ia] - arr[ib];
 }
 
-double test_select(int k, int n, double arr[])
+double test_select(int k, int n, int arr[])
 {
-    qsort(arr, n, sizeof(double), cmp);
+    qsort(arr, n, sizeof(int), cmp);
     return arr[k];
 }
 
-int test_select_index(int k, int n, double arr[])
+int test_select_index(int k, int n, int arr[])
 {
     int i, index[MAXLEN];
 
@@ -31,8 +31,7 @@ int test_select_index(int k, int n, double arr[])
 
 int main(int argc, char *argv[])
 {
-    double r1, r2, a1[MAXLEN], a2[MAXLEN];
-    int i1, i2;
+    int i1, i2, r1, r2, a1[MAXLEN], a2[MAXLEN];
     int i, n, k;
     FILE *fp;
 
@@ -41,7 +40,7 @@ int main(int argc, char *argv[])
     k = atoi(argv[1]);
 
     for (i = 0; i < MAXLEN; i++)
-        if (fscanf(fp, "%lf", &a1[i]) == EOF) break;
+        if (fscanf(fp, "%d", &a1[i]) == EOF) break;
 
     fclose(fp);
 
@@ -49,9 +48,9 @@ int main(int argc, char *argv[])
     while (--i) a2[i] = a1[i];
     a2[0] = a1[0];
 
-/*    r1 = quickselect(k, n, a1);
+/*    r1 = qselect(k, n, a1);
     r2 = test_select(k, n, a2);
-    printf("%f\t%f\n", r1, r2);*/
+    printf("%d\t%d\n", r1, r2);*/
 
     i1 = qselect_index(k, n, a1);
     i2 = test_select_index(k, n, a2);

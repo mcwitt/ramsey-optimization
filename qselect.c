@@ -4,7 +4,7 @@
 
 #define SWAP(a,b) { temp=(a); (a)=(b); (b)=temp; }
 
-double qselect(unsigned long k, unsigned long n, double arr[])
+double qselect(unsigned long k, unsigned long n, elem_t arr[])
 /*
  * Given k in [0..n-1] returns an array value from arr[0..n-1] such that k
  * array values are less than or equal to the one returned. The input array
@@ -14,7 +14,7 @@ double qselect(unsigned long k, unsigned long n, double arr[])
  */
 {
     unsigned long i, ir, j, l, mid;
-    double a, temp;
+    elem_t a, temp;
 
     l = 0;
     ir = n-1;
@@ -56,11 +56,11 @@ double qselect(unsigned long k, unsigned long n, double arr[])
     }
 }
 
-unsigned long qselect_index(unsigned long k, unsigned long n, double arr[])
+unsigned long qselect_index(unsigned long k, unsigned long n, elem_t arr[])
 /* Returns the index of the kth smallest value in the array arr[0..n-1] */
 {
     unsigned long i, ir, j, l, mid, temp, tab[QSELECT_MAXLEN];
-    double a;
+    elem_t a;
 
     l = 0;
     ir = n-1;
@@ -76,8 +76,8 @@ unsigned long qselect_index(unsigned long k, unsigned long n, double arr[])
         } else {
             /*
              * Choose median of left, center, and right elements as
-             * partitioning element a. Also rearrange so that arr[l] <=
-             * arr[l+1], arr[ir] >= arr[l+1].
+             * partitioning element a. Also rearrange so that
+             * arr[l] <= arr[l+1], arr[ir] >= arr[l+1].
              */
             mid = (l+ir) >> 1;
             SWAP(tab[mid], tab[l+1]);
@@ -98,8 +98,8 @@ unsigned long qselect_index(unsigned long k, unsigned long n, double arr[])
                 SWAP(tab[i], tab[j]);
             }                       /* End of innermost loop */
             SWAP(tab[l+1], tab[j]); /* Insert partitioning element */
-            if (j >= k) ir = j-1;   /* Keep active the partition that contains */
-            if (j <= k) l = i;      /*   the kth element */
+            if (j >= k) ir = j-1;   /* Keep active the partition that */
+            if (j <= k) l = i;      /*   contains the kth element */
         }
     }
 }

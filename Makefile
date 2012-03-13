@@ -1,6 +1,6 @@
 dsfmt_dir = $(HOME)/local/src/dSFMT-src-2.1
 dsfmt_flags = -I$(dsfmt_dir) -DDSFMT_MEXP=2203 -DHAVE_SSE2
-sims = pt.out sa.out demon.out demon2.out demon2-2.out genetic.out
+sims = pt.out sa.out demon.out demon2.out demon2-2.out genetic.out eo.out
 
 VPATH = $(dsfmt_dir)
 CFLAGS = -Wall -std=gnu99 -O3 $(dsfmt_flags)
@@ -29,6 +29,8 @@ demon2.out: ramsey2.o
 demon2-2.out: ramsey2.o
 
 genetic.out: ramsey.o sga.o
+
+eo.out: ramsey.o qselect.o
 
 clean:
 	$(RM) defs.h *.o
