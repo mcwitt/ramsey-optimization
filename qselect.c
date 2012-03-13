@@ -57,7 +57,7 @@ double qselect(unsigned long k, unsigned long n, double arr[])
 }
 
 unsigned long qselect_index(unsigned long k, unsigned long n, double arr[])
-/* Returns the index of the kth smallest value in the array arr[1..n] */
+/* Returns the index of the kth smallest value in the array arr[0..n-1] */
 {
     unsigned long i, ir, j, l, mid, temp, tab[QSELECT_MAXLEN];
     double a;
