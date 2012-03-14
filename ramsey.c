@@ -15,7 +15,68 @@ int *edgr[NSGR], *edgs[NSGS];
 int nedr = R*(R-1)/2;   /* number of edges in an R-subgraph */
 int neds = S*(S-1)/2;   /* number of edges in an S-subgraph */
 
-static void init_tabs(int *sub[], int *edg[], int t, int nsgfe, int nedrs);
+static void init_tabs(int *sub[], int *edg[], int t, int nsgfe, int nedt)
+{
+    int nsub[NED];  /* number of subgraphs processed for each edge */
+    int nedg;       /* number of edges of the current subgraph processed */
+    int v[S+2];     /* vertices of the current subgraph */
+    int iedg, isub; /* edge and subgraph indices */
+    int j, k;
+
+    for (j = 0; j < NED; j++)
+    {
+        sub[j] = (int*) malloc(nsgfe * sizeof(int));
+        nsub[j] = 0;
+    }
+
+    /* 
+     * Iterate over all subgraphs with t vertices (i.e. combinations of t
+     * vertices)
+     *
+     * Algorithm to generate combinations adapted from Algorithm L in Knuth's
+     * Art of Computer Programming Vol. 4, Fasc. 3 (all-caps labels correspond
+     * to labels in the book)
+     */
+
+    /* INITIALIZE */
+    isub = 0;
+    v[t] = NV;
+    v[t+1] = 0;
+    for (j = 0; j < t; j++) v[j] = j;
+
+    for (;;)
+    {
+        /*
+         * VISIT subgraph v_1 v_2 ... v_t
+         * (algorithm guarantees that v_1 < v_2 < ... < v_t)
+         */
+
+        edg[isub] = (int*) malloc(nedt * sizeof(int));
+        nedg = 0;
+
+        /* iterate over edges in this subgraph */
+        for (j = 0; j < t; j++)
+        {
+            for (k = 0; k < j; k++)
+            {
+                iedg = v[j]*(v[j]-1)/2 + v[k];
+                sub[iedg][nsub[iedg]++] = isub; /* append isub to sub[iedg] */
+                edg[isub][nedg++] = iedg;       /* append iedg to edg[isub] */
+            }
+        }
+
+        isub++;   /* increment subgraph label */
+
+        /* FIND j */
+        j = 0;
+        while (v[j] + 1 == v[j+1]) { v[j] = j; j++; }
+
+        /* DONE? */
+        if (j == t) break;
+
+        v[j]++;
+    }
+}
 
 void R_init(uint32_t seed)
 {
@@ -235,67 +296,4 @@ int R_energy(int sp[NED])
     }
 
     return energy;
-}
-
-static void init_tabs(int *sub[], int *edg[], int t, int nsgfe, int nedt)
-{
-    int nsub[NED];  /* number of subgraphs processed for each edge */
-    int nedg;       /* number of edges of the current subgraph processed */
-    int v[S+2];     /* vertices of the current subgraph */
-    int iedg, isub; /* edge and subgraph indices */
-    int j, k;
-
-    for (j = 0; j < NED; j++)
-    {
-        sub[j] = (int*) malloc(nsgfe * sizeof(int));
-        nsub[j] = 0;
-    }
-
-    /* 
-     * Iterate over all subgraphs with t vertices (i.e. combinations of t
-     * vertices)
-     *
-     * Algorithm to generate combinations adapted from Algorithm L in Knuth's
-     * Art of Computer Programming Vol. 4, Fasc. 3 (all-caps labels
-     * correspond to labels in the book)
-     */
-
-    /* INITIALIZE */
-    isub = 0;
-    v[t] = NV;
-    v[t+1] = 0;
-    for (j = 0; j < t; j++) v[j] = j;
-
-    for (;;)
-    {
-        /*
-         * VISIT subgraph v_1 v_2 ... v_t
-         * (algorithm guarantees that v_1 < v_2 < ... < v_t)
-         */
-
-        edg[isub] = (int*) malloc(nedt * sizeof(int));
-        nedg = 0;
-
-        /* iterate over edges in this subgraph */
-        for (j = 0; j < t; j++)
-        {
-            for (k = 0; k < j; k++)
-            {
-                iedg = v[j]*(v[j]-1)/2 + v[k];
-                sub[iedg][nsub[iedg]++] = isub; /* append isub to sub[iedg] */
-                edg[isub][nedg++] = iedg;       /* append iedg to edg[isub] */
-            }
-        }
-
-        isub++;   /* increment subgraph label */
-
-        /* FIND j */
-        j = 0;
-        while (v[j] + 1 == v[j+1]) { v[j] = j; j++; }
-
-        /* DONE? */
-        if (j == t) break;
-
-        v[j]++;
-    }
 }

@@ -1,16 +1,13 @@
 dsfmt_dir = $(HOME)/local/src/dSFMT-src-2.1
 dsfmt_flags = -I$(dsfmt_dir) -DDSFMT_MEXP=2203 -DHAVE_SSE2
-sims = pt.out sa.out demon.out demon2.out demon2-2.out genetic.out eo.out
+sims = pt sa demon demon2 demon2-2 genetic eo
 
 VPATH = $(dsfmt_dir)
 CFLAGS = -Wall -std=gnu99 -O3 $(dsfmt_flags)
 #CFLAGS = -Wall -std=gnu99 -O3 $(dsfmt_flags) -g
 LDFLAGS = -lm
 
-all: $(sims) energy.out
-
-%.out: %.o
-	$(CC) $^ $(CFLAGS) $(LDFLAGS) -o $@
+all: $(sims) energy
 
 $(sims): dSFMT.o
 
@@ -19,18 +16,24 @@ defs.h: gendefs.py
 
 ramsey.o ramsey2.o: defs.h
 
-pt.out: ramsey.o
+pt: ramsey.o
 
-sa.out: ramsey.o
+sa: ramsey.o
 
-demon2.out demon2-2.out: CFLAGS := $(CFLAGS) -DQUADRATIC
-demon.out: ramsey.o
-demon2.out: ramsey2.o
-demon2-2.out: ramsey2.o
+demon2 demon2-2: CFLAGS := $(CFLAGS) -DQUADRATIC
+demon: ramsey.o
+demon2: ramsey2.o
+demon2-2: ramsey2.o
 
-genetic.out: ramsey.o sga.o
+genetic: ramsey.o sga.o
 
-eo.out: ramsey.o qselect.o
+eo: ramsey.o qselect.o
+
+checks: ramsey.o dSFMT.o
+
+.PHONY: run_checks
+run_checks: checks
+	./checks
 
 clean:
 	$(RM) defs.h *.o

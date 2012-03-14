@@ -33,11 +33,9 @@ void set_cdf(double tau, double cdf[])
     int k;
 
     sum = 0.;
-    for (k = 0; k < NED; k++)
-        sum += (cdf[k] = pow(k+1, -tau));
+    for (k = 0; k < NED; k++) { cdf[k] = pow(k+1, -tau); sum += cdf[k]; }
     cdf[0] /= sum;
-    for (k = 1; k < NED; k++)
-        cdf[k] = cdf[k-1] + cdf[k]/sum;
+    for (k = 1; k < NED; k++) cdf[k] = cdf[k-1] + cdf[k]/sum;
 
     /*debug
     for (k = 0; k < NED; k++)
@@ -103,7 +101,6 @@ int main(int argc, char *argv[])
 
     for (iupdate = 0; iupdate < nupdate; iupdate++)
     {
-
         /* compute fitness value for each spin */
         for (j = 0; j < NED; j++) lambda[j] = r.sp[j]*r.h2[j];
 
@@ -133,7 +130,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    printf("%5d %6d\n", iupdate, emin);
+    printf("%12d %6d\n", iupdate/NED, emin);
     R_finalize();
     return (emin == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
