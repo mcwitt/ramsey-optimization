@@ -47,7 +47,7 @@ int sweep()
 
 int main(int argc, char *argv[])
 {
-    char filename[256];
+    char filename[64];
     double T_max, T_min, T_mult, sweep_mult;
     int nsweep_min, nsweep_max, nstage, nrun;
     int irun, istage, isweep;

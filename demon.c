@@ -45,7 +45,7 @@ int sweep(int emax_demon)
 
 int main(int argc, char *argv[])
 {
-    char filename[256];
+    char filename[64];
     double sweep_mult;
     int nsweep_min, nsweep_max, nstage, nrun;
     int irun, isweep;

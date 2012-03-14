@@ -34,6 +34,7 @@ checks: ramsey.o dSFMT.o
 .PHONY: run_checks
 run_checks: checks
 	./checks
+	$(RM) checks
 
 clean:
 	$(RM) defs.h *.o

@@ -18,6 +18,10 @@
 #include "qselect.h"
 #include "ramsey.h"
 
+#if (NED > QSELECT_MAXLEN)
+#error Must have NED <= QSELECT_MAXLEN
+#endif
+
 #define WRITE_MAX 10  /* only save graph when energy is below this value */
 
 #define RANDOM() dsfmt_genrand_close_open(&dsfmt)
@@ -60,22 +64,23 @@ int bisect(double a[], double x, int l, int r)
 
 int main(int argc, char *argv[])
 {
-    char filename[256];
-    double tau, cdf[NED];
-    int lambda[NED];
-    int nupdate, iupdate, j, k, emin;
+    char filename[64];
+    double tau;         /* distribution parameter */
+    double cdf[NED];    /* cumulative distribution for P(k) = 1/k^tau */
+    int lambda[NED];    /* fitness values */
+    int nsweep, isweep, iupdate, j, k, emin;
     uint32_t seed;
 
     if (argc != 4 && argc != 5)
     {
-        fprintf(stderr, "Usage: %s tau nupdate seed "
-                " [partial_config]\n", argv[0]);
+        fprintf(stderr, "Usage: %s tau nsweep seed [partial_config]\n"\
+                "Each \"sweep\" consists of NED iterations\n", argv[0]);
         fprintf(stderr, "Compiled for (%d, %d, %d)\n", R, S, NV);
         exit(EXIT_FAILURE);
     }
 
     tau = atof(argv[1]);
-    nupdate = atoi(argv[2]);
+    nsweep = atoi(argv[2]);
     seed = atoi(argv[3]);
 
     sprintf(filename, "%d-%d-%d_%d.graph", R, S, NV, seed);
@@ -96,41 +101,40 @@ int main(int argc, char *argv[])
     }
 
     emin = INT_MAX;
+    printf("%6s %6s\n", "# nsweep", "emin");
 
-    printf("%12s %6s\n", "iter/N_edge", "emin");
-
-    for (iupdate = 0; iupdate < nupdate; iupdate++)
+    for (isweep = 0; isweep < nsweep; isweep++)
     {
-        /* compute fitness value for each spin */
-        for (j = 0; j < NED; j++) lambda[j] = r.sp[j]*r.h2[j];
-
-        /* choose random integer k in [0..NED-1] from distribution */
-        k = bisect(cdf, RANDOM(), 0, NED);
-
-        /* flip the kth "worst" spin */
-        j = qselect_index(k, NED, lambda);
-        r.en += lambda[j];
-        R_flip(&r, j);
-
-        if (r.en < emin)
+        for (iupdate = 0; iupdate < NED; iupdate++)
         {
-            emin = r.en;
+            /* compute fitness value (i.e. energy to flip) for each spin */
+            for (j = 0; j < NED; j++) lambda[j] = r.sp[j]*r.h2[j];
 
-            if (emin < WRITE_MAX)
+            /* choose random integer k in [0..NED-1] from distribution */
+            k = bisect(cdf, RANDOM(), 0, NED);
+
+            /* flip the kth "worst" spin */
+            j = qselect_index(k, NED, lambda);
+            r.en += lambda[j];
+            R_flip(&r, j);
+
+            if (r.en < emin)
             {
-                R_save_graph(r.sp, filename);
-                if (emin == 0) break;
+                emin = r.en;
+
+                if (emin < WRITE_MAX)
+                {
+                    R_save_graph(r.sp, filename);
+                    if (emin == 0) break;
+                }
             }
         }
 
-        if (iupdate % NED == 0)
-        {
-            printf("%12d %6d\n", iupdate/NED, emin);
-            fflush(stdout);
-        }
+        printf("%8d %6d\n", isweep, emin);
+        fflush(stdout);
+        if (emin == 0) break;
     }
 
-    printf("%12d %6d\n", iupdate/NED, emin);
     R_finalize();
     return (emin == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }

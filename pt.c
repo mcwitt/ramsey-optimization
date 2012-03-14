@@ -121,7 +121,7 @@ int main(int argc, char *argv[])
 {
     FILE *infile;
     R_replica_t *p;
-    char filename[256];
+    char filename[64];
     double t;
     int iT;
 
