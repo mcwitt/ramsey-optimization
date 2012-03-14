@@ -5,20 +5,17 @@
 #define RANDOM() dsfmt_genrand_close_open(&dsfmt)
 dsfmt_t dsfmt;
 
-/* subs[ei] (subr[ei]) lists the NSGFES (NSGFER) complete S-subgraphs
- * (R-subgraphs) that include edge ei */
-int *subr[NED];
-int *subs[NED];
+/* subs[iedge] (subr[iedge]) lists the NSGFES (NSGFER) complete S-subgraphs
+ * (R-subgraphs) that include edge iedge */
+int *subr[NED], *subs[NED];
  
 /* edgs[isub] (edgr[isub]) lists the edges of S-subgraph (R-subgraph) isub */
-int *edgr[NSGR];
-int *edgs[NSGS];
+int *edgr[NSGR], *edgs[NSGS];
 
 int nedr = R*(R-1)/2;   /* number of edges in an R-subgraph */
 int neds = S*(S-1)/2;   /* number of edges in an S-subgraph */
 
 static void init_tabs(int *sub[], int *edg[], int t, int nsgfe, int nedrs);
-static void free_tabs(int *sub[], int *edg[], int nsg);
 
 void R_init(uint32_t seed)
 {
@@ -31,8 +28,11 @@ void R_init(uint32_t seed)
 
 void R_finalize()
 {
-    free_tabs(subr, edgr, NSGR);
-    free_tabs(subs, edgs, NSGS);
+    int i;
+
+    for (i = 0; i < NED; i++)  { free(subr[i]); free(subs[i]); }
+    for (i = 0; i < NSGR; i++) { free(edgr[i]); free(edgs[i]); }
+    for (; i < NSGS; i++) free(edgs[i]);
 }
 
 void R_init_replica(R_replica_t *p)
@@ -299,14 +299,3 @@ static void init_tabs(int *sub[], int *edg[], int t, int nsgfe, int nedt)
         v[j]++;
     }
 }
-
-static void free_tabs(int *sub[], int *edg[], int nsg)
-{
-    int i;
-
-    for (i = 0; i < NED; i++)
-        free(sub[i]);
-    for (i = 0; i < nsg; i++)
-        free(edg[i]);
-}
-
