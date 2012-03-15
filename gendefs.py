@@ -8,9 +8,9 @@ outfile = 'defs.h'
 if len(sys.argv) == 4:
     r, s, nv = (int(arg) for arg in sys.argv[1:4])
 else:
-    r   = int(input('r   = '))
-    s   = int(input('s   = '))
-    nv  = int(input('N_v = '))
+    r   = int(input('R  = '))
+    s   = int(input('S  = '))
+    nv  = int(input('NV = '))
 
 if r > s: r, s = s, r
 
