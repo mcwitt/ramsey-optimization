@@ -2,11 +2,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.mlab import rec_groupby
 
-files = {
-        '4-6-35_1_all.log': (1,),
-        '4-6-35_1.1_all.log': (1.1,),
-        '4-6-35_1.2_all.log': (1.2,)
-        }
+files = [
+        (1,   '4-6-35_1_all.log'),
+        (1.1, '4-6-35_1.1_all.log'),
+        (1.2, '4-6-35_1.2_all.log'),
+        (1.3, '4-6-35_1.3_all.log'),
+        (1.4, '4-6-35_1.4_all.log'),
+        (1.5, '4-6-35_1.5_all.log')
+        ]
 
 markers = ['o', 's', 'v', '^', 'p', 'D']
 colors = ['r', 'b', 'g', 'y', 'm', 'c', 'k']
@@ -14,7 +17,8 @@ colors = ['r', 'b', 'g', 'y', 'm', 'c', 'k']
 plt.figure()
 plt.gca().set_xscale('log')
 
-for i, fname in enumerate(files.keys()):
+for i, f in enumerate(files):
+    tau, fname = f
     data = np.loadtxt(fname, usecols=[0,1], dtype=[('nsweep', int), ('emin', int)])
     err = lambda a: np.std(a)/np.sqrt(len(a)-1)
 
@@ -29,7 +33,7 @@ for i, fname in enumerate(files.keys()):
     emin_err = r.emin_err[nsweep]
 
     kwargs = dict(
-        label = r'$%.2f$' % files[fname],
+        label = r'$%.2f$' % tau,
         marker = markers[i % len(markers)],
         color = colors[i % len(colors)]
     )

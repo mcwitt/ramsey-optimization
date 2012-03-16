@@ -2,13 +2,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.mlab import rec_groupby
 
-files = {
-        'g45-24_300-0-0.003-1_all.log': (300, 0, 0.003, 1),
-        'g45-24_300-0.2-0.003-1_all.log': (300, 0.2, 0.003, 1),
-        'g45-24_300-0.6-0.003-1_all.log': (300, 0.6, 0.003, 1),
-        'g45-24_300-0.6-0.001-1_all.log': (300, 0.6, 0.001, 1),
-        'g45-24_300-0.6-0.01-1_all.log': (300, 0.6, 0.01, 1),
-        }
+files = [
+        (300, 0.0, 0.003, 1, 'g45-24_300-0-0.003-1_all.log'),
+        (300, 0.2, 0.003, 1, 'g45-24_300-0.2-0.003-1_all.log'),
+        (300, 0.6, 0.003, 1, 'g45-24_300-0.6-0.003-1_all.log'),
+        (300, 0.6, 0.001, 1, 'g45-24_300-0.6-0.001-1_all.log'),
+        (300, 0.6, 0.01, 1, 'g45-24_300-0.6-0.001-1_all.log')
+        ]
 genstep = 5
 
 markers = ['o', 's', 'v', '^', 'p', 'D']
@@ -17,7 +17,9 @@ colors = ['r', 'b', 'g', 'y', 'm', 'c', 'k']
 plt.figure()
 plt.gca().set_xscale('log')
 
-for i, fname in enumerate(files.keys()):
+for i, f in enumerate(files):
+    params = f[:4]
+    fname = f[-1]
     data = np.loadtxt(fname, usecols=[0,1], dtype=[('gen', int), ('emin', int)])
     err = lambda a: np.std(a)/np.sqrt(len(a)-1)
 
@@ -27,12 +29,12 @@ for i, fname in enumerate(files.keys()):
         )
 
     np.sort(r, order=['gen'])
-    gen = np.array([0, 5, 10, 30, 100, 300, 1000, 3000])
+    gen = np.array([5, 10, 30, 100, 300, 1000, 3000])
     emin_avg = r.emin_avg[gen/genstep]
     emin_err = r.emin_err[gen/genstep]
 
     kwargs = dict(
-        label = r'$(%3d,\,%2.1f,\, %4.3f,\, %1d)$' % files[fname],
+        label = r'$(%3d,\,%2.1f,\, %4.3f,\, %1d)$' % params,
         marker = markers[i % len(markers)],
         color = colors[i % len(colors)]
     )
