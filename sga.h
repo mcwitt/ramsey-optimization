@@ -1,3 +1,14 @@
+/* Genetic algorithm based on Goldberg's "Simple Genetic Algorithm"
+ *
+ * Author: Matt Wittmann <mwittman@ucsc.edu>
+ *
+ * Optional compilation flags:
+ *  NOSCALE : don't perform linear scaling of fitness values before selection
+ *  NOTRUNC : don't use sigma truncation (will generate errors if objective
+ *              function returns negative values
+ *  CROSS2  : use 2-point crossover
+ */
+
 #include "stdint.h"
 
 #define SGA_MAXPOPSIZE  1000

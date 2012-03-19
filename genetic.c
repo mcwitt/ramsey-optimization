@@ -26,7 +26,7 @@ double objfunc(SGA_allele_t chrom[])
 int main(int argc, char *argv[])
 {
     SGA_t sga;
-    char filename[256];
+    char filename[64];
     double pcross, pmutate;
     int sp[NED];
     int popsize, igen, ngen, ncross, nmutation, seed;

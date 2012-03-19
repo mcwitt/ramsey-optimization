@@ -5,13 +5,20 @@
 #include "dSFMT.h"
 #include "sga.h"
 
-#define FMULT   2.0
-#define C       2.0
-#define DELTA   0.0
+#define FMULT   2.0     /* linear scaling parameter */
+#define C       2.0     /* sigma truncation parameter */
+#define DELTA   0.0     /* sigma truncation parameter */
 #define EPSILON 10e-15  /* set to roughly machine precision */
-/*#define C2*/    /* use 2-point crossover if defined */
 
-#ifdef C2
+#ifdef NOSCALE
+#warning Linear scaling of fitnesses disabled
+#endif
+
+#ifdef NOTRUNC
+#warning Sigma truncation disabled
+#endif
+
+#ifdef CROSS2
 #warning Using 2-point crossover
 #endif
 
@@ -21,8 +28,9 @@
 dsfmt_t dsfmt;
 
 /*
- * "sigma truncation" (Goldberg 124)--translate fitness values to make the
- * average c*sigma + delta, then set negative values to zero
+ * "Sigma truncation" (Goldberg 124)--translate fitness values to make the
+ * average c*sigma + delta, then set negative values to zero.
+ * Nonzero delta avoids issues when fitness values are all equal
  */
 static void sigmatrunc(double x[], int len, double c, double delta,
                        double *avg, double *var, double *min, double *max)
@@ -146,7 +154,7 @@ static void cross(SGA_allele_t parent1[], SGA_allele_t parent2[],
  * random crossing site, place results in 2 child strings; otherwise copy
  * parent strings
  */
-#ifndef C2
+#ifndef CROSS2
 static void crossover(SGA_allele_t parent1[], SGA_allele_t parent2[],
                       SGA_allele_t child1[],  SGA_allele_t child2[],
                       int lchrom, double pcross, int *ncross)
@@ -226,8 +234,12 @@ void update_stats(double (*objfunc)(SGA_allele_t*), double (*fitfunc)(double),
     *avg /= popsize;
     *var = *var / popsize - (*avg)*(*avg);
 
+#ifndef NOTRUNC
     sigmatrunc(fitness, popsize, C, DELTA, avg, var, min, max);
+#endif
+#ifndef NOSCALE
     if (*var > EPSILON) linscale(fitness, popsize, FMULT, avg, var, min, max);
+#endif
 }
 
 void SGA_init(SGA_t *sga, int popsize, int lchrom,
@@ -282,7 +294,7 @@ void SGA_advance(SGA_t *sga, int *ncross, int *nmutation)
         mate2 = select_mate(parts, sga->popsize);
 
         /* do crossover with probability pcross */
-#ifndef C2
+#ifndef CROSS2
         crossover(sga->chrom[mate1], sga->chrom[mate2],
                   sga->nextg[i], sga->nextg[i+1],
                   sga->lchrom, sga->pcross, ncross);
