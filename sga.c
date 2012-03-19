@@ -27,6 +27,7 @@
 
 dsfmt_t dsfmt;
 
+#ifndef NOTRUNC
 /*
  * "Sigma truncation" (Goldberg 124)--translate fitness values to make the
  * average c*sigma + delta, then set negative values to zero.
@@ -54,7 +55,9 @@ static void sigmatrunc(double x[], int len, double c, double delta,
     *avg /= len;
     *var = *var/len - (*avg)*(*avg);
 }
+#endif
 
+#ifndef NOSCALE
 /* do linear scaling of fitnesses as described in Goldberg pp. 78-79 */
 static void linscale(double x[], int len, double mult,
                      double *avg, double *var, double *min, double *max)
@@ -79,12 +82,13 @@ static void linscale(double x[], int len, double mult,
         b = -(*avg) * (*min) / delta;
     }
 
-    /* apply scaling and calculate new variance*/
+    /* apply scaling and calculate new variance (average is unchanged) */
     for (i = 0; i < len; i++) x[i] = a*x[i] + b;
     *max = a * (*max) + b;
     *min = a * (*min) + b;
     *var = (a*a - 1)*(*avg)*(*avg) + 2*a*b*(*avg) + a*a*(*var) + b*b;
 }
+#endif
 
 /* return the insertion point for x to maintain sorted order of a */
 static int bisect(double a[], double x, int l, int r)
