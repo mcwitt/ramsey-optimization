@@ -101,7 +101,7 @@ int main(int argc, char *argv[])
     }
 
     emin = INT_MAX;
-    printf("%6s %6s\n", "# nsweep", "emin");
+    printf("# %10s %8s %6s\n", "nflip/NED", "energy", "emin");
 
     for (isweep = 0; isweep < nsweep; isweep++)
     {
@@ -130,7 +130,7 @@ int main(int argc, char *argv[])
             }
         }
 
-        printf("%8d %6d\n", isweep, emin);
+        printf("%12d %8d %6d\n", isweep, r.en, emin);
         fflush(stdout);
         if (emin == 0) break;
     }

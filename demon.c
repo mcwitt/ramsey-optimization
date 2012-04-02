@@ -49,7 +49,7 @@ int main(int argc, char *argv[])
     double sweep_mult;
     int nsweep_min, nsweep_max, nstage, nrun;
     int irun, isweep;
-    int nsweep, nflip, nflip_sweep = 0;
+    int nsweep, nflip_stage, nflip_sweep = 0, nflip = 0;
     int emax_demon, e_demon_av, emin, emin_stage;
     int mask;
     uint32_t seed;
@@ -97,9 +97,9 @@ int main(int argc, char *argv[])
     for (irun = 0; irun < nrun; irun++)
     {
         /* print column names */
-        printf("# %3s %8s %12s %12s %8s %10s %12s %8s\n",
+        printf("# %3s %8s %12s %12s %8s %10s %12s | %10s %8s\n",
             "run", "nsweep", "emax_demon", "e_demon_av",
-            "a.r.", "nflip/spin", "emin_stage", "emin");
+            "a.r.", "nflip/NED", "emin_stage", "nflip//NED", "emin");
 
         R_randomize(&r, (double) R/(R+S), mask);   /* randomize free spins */
         nsweep = nsweep_min;
@@ -107,7 +107,7 @@ int main(int argc, char *argv[])
 
         while (emax_demon >= 0)
         {
-            nflip = 0;
+            nflip_stage = 0;
             e_demon_av = 0;
             emin_stage = INT_MAX;
 
@@ -116,7 +116,7 @@ int main(int argc, char *argv[])
                 nflip_sweep = sweep(emax_demon);
                 e_demon_av += e_demon;
                 if (nflip_sweep == 0) break;
-                nflip += nflip_sweep;
+                nflip_stage += nflip_sweep;
 
                 if (r.en < emin_stage)
                 {
@@ -135,13 +135,17 @@ int main(int argc, char *argv[])
                 }
             }
 
+            nflip += nflip_stage;
+
             /* print stage stats */
-            printf("%5d %8d %12d %12.2f %8.5f %10.2f %12d %8d\n",
+            printf("%5d %8d %12d %12.2f %8.5f %10.2f %12d | %10d %8d\n",
                     irun, nsweep, emax_demon,
                     (double) e_demon_av/(isweep+1),
-                    (double) nflip/NED/(isweep+1),
-                    (double) nflip/NED,
-                    emin_stage, emin);
+                    (double) nflip_stage/NED/(isweep+1),
+                    (double) nflip_stage/NED,
+                    emin_stage,
+                    nflip/NED,
+                    emin);
             fflush(stdout);
 
             if ((emin == 0) || (nflip_sweep == 0)) break;
