@@ -1,6 +1,11 @@
 /* Genetic algorithm based on Goldberg's "Simple Genetic Algorithm" but using
- * Truncation Selection (i.e. pick the k best individuals for reproduction)
- * instead of Fitness Proportional Probability Selection.
+ * truncation selection (i.e. picking the k best individuals for reproduction)
+ * instead of roulette-wheel selection.
+ *
+ * Author: Matt Wittmann <mwittman@ucsc.edu>
+ *
+ * Optional compilation flags:
+ *  CROSS2  : use 2-point crossover
  */
 
 #include <assert.h>
@@ -24,7 +29,7 @@ int cmp_index(void *thunk, const void *a, const void *b) {
     return (arr[ia] - arr[ib] < 0.) ? 1 : -1;   /* largest first */
 }
 
-/* rank fitnesses and create a table of indices by rank */
+/* rank fitnesses high to low and create a table of indices by rank */
 static void rank(int index[], double fitness[], int n)
 {
     int i;
@@ -150,7 +155,7 @@ void update_stats(double (*objfunc)(GA_allele_t*), double (*fitfunc)(double),
 
 void GA_init(GA_t *ga, int popsize, int lchrom,
               double (*objfunc)(GA_allele_t*), double (*fitfunc)(double),
-              int k, double pcross, double pmutate, uint32_t seed)
+              int ktrunc, double pcross, double pmutate, uint32_t seed)
 {
     int i, j;
 
@@ -160,7 +165,7 @@ void GA_init(GA_t *ga, int popsize, int lchrom,
     ga->lchrom  = lchrom;
     ga->objfunc = objfunc;
     ga->fitfunc = fitfunc;
-    ga->k = k;
+    ga->ktrunc  = ktrunc;
     ga->pcross  = pcross;
     ga->pmutate = pmutate;
 
@@ -197,8 +202,8 @@ void GA_advance(GA_t *ga, int *ncross, int *nmutation)
     for (i = 0; i < ga->popsize; i += 2)
     {
         /* select mates from k fittest individuals */
-        r = (int) RND(0, ga->k); mate1 = index[r];
-        r = (int) RND(0, ga->k); mate2 = index[r];
+        r = (int) RND(0, ga->ktrunc); mate1 = index[r];
+        r = (int) RND(0, ga->ktrunc); mate2 = index[r];
 
         /* do crossover with probability pcross */
 #ifndef CROSS2

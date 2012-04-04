@@ -1,6 +1,6 @@
 /* Genetic algorithm based on Goldberg's "Simple Genetic Algorithm" but using
- * Truncation Selection (i.e. pick the k best individuals for reproduction)
- * instead of Fitness Proportional Probability Selection.
+ * truncation selection (i.e. picking the k best individuals for reproduction)
+ * instead of roulette-wheel selection.
  *
  * Author: Matt Wittmann <mwittman@ucsc.edu>
  *
@@ -30,7 +30,7 @@ typedef struct
     double objective[GA_MAXPOPSIZE];   /* objective function values */
     double fitness[GA_MAXPOPSIZE];     /* scaled fitnesses */
 
-    int popsize, lchrom, k;
+    int popsize, lchrom, ktrunc;
     double pcross, pmutate;
     double fmin, fmax, favg, fvar;
     int fittest;
@@ -39,7 +39,7 @@ typedef struct
 /* create a population of random individuals */
 void GA_init(GA_t *ga, int popsize, int lchrom,
               double (*objfunc)(GA_allele_t*), double (*fitfunc)(double),
-              int k, double pcross, double pmutate, uint32_t seed);
+              int ktrunc, double pcross, double pmutate, uint32_t seed);
 
 /* advance one generation */
 void GA_advance(GA_t *ga, int *ncross, int *nmutation);
