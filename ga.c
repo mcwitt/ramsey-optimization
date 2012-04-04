@@ -3,7 +3,7 @@
 #include <assert.h>
 #include <math.h>
 #include "dSFMT.h"
-#include "sga.h"
+#include "ga.h"
 
 #define FMULT   2.0     /* linear scaling parameter */
 #define C       2.0     /* sigma truncation parameter */
@@ -128,8 +128,8 @@ static void preselect(double fitness[], double parts[],
  * do 2-point crossover of 2 parent strings using specified crossing sites
  * x1 < x2, place results in 2 child strings
  */
-static void cross(SGA_allele_t parent1[], SGA_allele_t parent2[],
-                  SGA_allele_t child1[],  SGA_allele_t child2[],
+static void cross(GA_allele_t parent1[], GA_allele_t parent2[],
+                  GA_allele_t child1[],  GA_allele_t child2[],
                   int lchrom, int x1, int x2)
 {
     int i;
@@ -159,13 +159,13 @@ static void cross(SGA_allele_t parent1[], SGA_allele_t parent2[],
  * parent strings
  */
 #ifndef CROSS2
-static void crossover(SGA_allele_t parent1[], SGA_allele_t parent2[],
-                      SGA_allele_t child1[],  SGA_allele_t child2[],
+static void crossover(GA_allele_t parent1[], GA_allele_t parent2[],
+                      GA_allele_t child1[],  GA_allele_t child2[],
                       int lchrom, double pcross, int *ncross)
 {
     int xsite;
 
-    if (RANDOM() < pcross) { xsite = RND(1, lchrom-1); *ncross += 1; }
+    if (RANDOM() < pcross) { xsite = (int) RND(1, lchrom-1); *ncross += 1; }
     else xsite = lchrom;    /* copy without crossover */
     cross(parent1, parent2, child1, child2, lchrom, xsite, lchrom);
 }
@@ -176,16 +176,16 @@ static void crossover(SGA_allele_t parent1[], SGA_allele_t parent2[],
  * parent strings
  */
 #else
-static void crossover2(SGA_allele_t parent1[], SGA_allele_t parent2[],
-                       SGA_allele_t child1[],  SGA_allele_t child2[],
+static void crossover2(GA_allele_t parent1[], GA_allele_t parent2[],
+                       GA_allele_t child1[],  GA_allele_t child2[],
                        int lchrom, double pcross, int *ncross)
 {
     int x1, x2, swap;
 
     if (RANDOM() < pcross)
     {
-        x1 = RND(1, lchrom-1);
-        x2 = RND(1, lchrom-1);
+        x1 = (int) RND(1, lchrom-1);
+        x2 = (int) RND(1, lchrom-1);
         if (x1 > x2) { swap = x1; x1 = x2; x2 = swap; }
         *ncross += 1;
     }
@@ -195,7 +195,7 @@ static void crossover2(SGA_allele_t parent1[], SGA_allele_t parent2[],
 #endif
 
 /* flip each bit in a chromosome with probability pmutate */
-static void mutate(SGA_allele_t chrom[], int lchrom,
+static void mutate(GA_allele_t chrom[], int lchrom,
                    double pmutate, int *nmutation)
 {
     int i;
@@ -211,8 +211,8 @@ static void mutate(SGA_allele_t chrom[], int lchrom,
 }
 
 /* calculate fitnesses and statistics */
-void update_stats(double (*objfunc)(SGA_allele_t*), double (*fitfunc)(double),
-                  SGA_allele_t (*chrom)[SGA_MAXPOPSIZE],
+void update_stats(double (*objfunc)(GA_allele_t*), double (*fitfunc)(double),
+                  GA_allele_t (*chrom)[GA_MAXPOPSIZE],
                   double objective[], double fitness[], int popsize,
                   double *avg, double *var, double *min, double *max,
                   int *fittest)
@@ -246,81 +246,81 @@ void update_stats(double (*objfunc)(SGA_allele_t*), double (*fitfunc)(double),
 #endif
 }
 
-void SGA_init(SGA_t *sga, int popsize, int lchrom,
-              double (*objfunc)(SGA_allele_t*), double (*fitfunc)(double),
+void GA_init(GA_t *ga, int popsize, int lchrom,
+              double (*objfunc)(GA_allele_t*), double (*fitfunc)(double),
               double pcross, double pmutate, uint32_t seed)
 {
     int i, j;
 
     assert(popsize % 2 == 0);
 
-    sga->popsize = popsize;
-    sga->lchrom  = lchrom;
-    sga->objfunc = objfunc;
-    sga->fitfunc = fitfunc;
-    sga->pcross  = pcross;
-    sga->pmutate = pmutate;
+    ga->popsize = popsize;
+    ga->lchrom  = lchrom;
+    ga->objfunc = objfunc;
+    ga->fitfunc = fitfunc;
+    ga->pcross  = pcross;
+    ga->pmutate = pmutate;
 
     /* init random number generator */
     dsfmt_init_gen_rand(&dsfmt, seed);
 
-    sga->chrom = sga->b1;
-    sga->nextg = sga->b2;
+    ga->chrom = ga->b1;
+    ga->nextg = ga->b2;
 
     /* create random population */
     for (i = 0; i < popsize; i++)
         for (j = 0; j < lchrom; j++)
-            sga->chrom[i][j] = (RANDOM() < 0.5) ? 0 : 1;
+            ga->chrom[i][j] = (RANDOM() < 0.5) ? 0 : 1;
 
     update_stats(
-        sga->objfunc, sga->fitfunc,
-        sga->chrom, sga->objective, sga->fitness, sga->popsize,
-        &sga->favg, &sga->fvar, &sga->fmin, &sga->fmax, &sga->fittest
+        ga->objfunc, ga->fitfunc,
+        ga->chrom, ga->objective, ga->fitness, ga->popsize,
+        &ga->favg, &ga->fvar, &ga->fmin, &ga->fmax, &ga->fittest
     );
 }
 
-void SGA_advance(SGA_t *sga, int *ncross, int *nmutation)
+void GA_advance(GA_t *ga, int *ncross, int *nmutation)
 {
-    SGA_allele_t (*swap)[SGA_MAXPOPSIZE];
-    double parts[SGA_MAXPOPSIZE];
+    GA_allele_t (*swap)[GA_MAXPOPSIZE];
+    double parts[GA_MAXPOPSIZE];
     int i, mate1, mate2;
 
     *ncross    = 0;
     *nmutation = 0;
 
-    preselect(sga->fitness, parts, sga->popsize * sga->favg, sga->popsize);
+    preselect(ga->fitness, parts, ga->popsize * ga->favg, ga->popsize);
 
     /* create new generation using crossover and mutation */
-    for (i = 0; i < sga->popsize; i += 2)
+    for (i = 0; i < ga->popsize; i += 2)
     {
         /* select mates with probability proportional to fitness */
-        mate1 = select_mate(parts, sga->popsize);
-        mate2 = select_mate(parts, sga->popsize);
+        mate1 = select_mate(parts, ga->popsize);
+        mate2 = select_mate(parts, ga->popsize);
 
         /* do crossover with probability pcross */
 #ifndef CROSS2
-        crossover(sga->chrom[mate1], sga->chrom[mate2],
-                  sga->nextg[i], sga->nextg[i+1],
-                  sga->lchrom, sga->pcross, ncross);
+        crossover(ga->chrom[mate1], ga->chrom[mate2],
+                  ga->nextg[i], ga->nextg[i+1],
+                  ga->lchrom, ga->pcross, ncross);
 #else
-        crossover2(sga->chrom[mate1], sga->chrom[mate2],
-                   sga->nextg[i], sga->nextg[i+1],
-                   sga->lchrom, sga->pcross, ncross);
+        crossover2(ga->chrom[mate1], ga->chrom[mate2],
+                   ga->nextg[i], ga->nextg[i+1],
+                   ga->lchrom, ga->pcross, ncross);
 #endif
 
-        mutate(sga->nextg[i  ], sga->lchrom, sga->pmutate, nmutation);
-        mutate(sga->nextg[i+1], sga->lchrom, sga->pmutate, nmutation);
+        mutate(ga->nextg[i  ], ga->lchrom, ga->pmutate, nmutation);
+        mutate(ga->nextg[i+1], ga->lchrom, ga->pmutate, nmutation);
     }
 
-    /* swap pointers so that sga->chrom points to the new generation */
-    swap = sga->chrom;
-    sga->chrom = sga->nextg;
-    sga->nextg = swap;
+    /* swap pointers so that ga->chrom points to the new generation */
+    swap = ga->chrom;
+    ga->chrom = ga->nextg;
+    ga->nextg = swap;
 
     /* compute fitness and statistics for new generation */
     update_stats(
-        sga->objfunc, sga->fitfunc,
-        sga->chrom, sga->objective, sga->fitness, sga->popsize,
-        &sga->favg, &sga->fvar, &sga->fmin, &sga->fmax, &sga->fittest
+        ga->objfunc, ga->fitfunc,
+        ga->chrom, ga->objective, ga->fitness, ga->popsize,
+        &ga->favg, &ga->fvar, &ga->fmin, &ga->fmax, &ga->fittest
     );
 }
