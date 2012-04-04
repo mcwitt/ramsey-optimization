@@ -14,8 +14,8 @@ int *subs[NED];
 int *edgr[NSGR];
 int *edgs[NSGS];
 
-int nedr = R*(R-1)/2;       /* number of edges in an R-subgraph */
-int neds = S*(S-1)/2;       /* number of edges in an S-subgraph */
+int nedr = R*(R-1)/2;   /* number of edges in an R-subgraph */
+int neds = S*(S-1)/2;   /* number of edges in an S-subgraph */
 
 static void init_tabs(int *sub[], int *edg[], int t, int nsgfe, int nedt)
 {
