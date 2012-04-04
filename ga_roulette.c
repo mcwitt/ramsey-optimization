@@ -1,12 +1,22 @@
-/* Genetic algorithm based on Goldberg's "Simple Genetic Algorithm" but using
- * Truncation Selection (i.e. pick the k best individuals for reproduction)
- * instead of Fitness Proportional Probability Selection.
- */
+/* Genetic algorithm based on Goldberg's "Simple Genetic Algorithm" */
 
 #include <assert.h>
 #include <math.h>
 #include "dSFMT.h"
-#include "ga_trunc.h"
+#include "ga_roulette.h"
+
+#define FMULT   2.0     /* linear scaling parameter */
+#define C       2.0     /* sigma truncation parameter */
+#define DELTA   0.0     /* sigma truncation parameter */
+#define EPSILON 10e-15  /* set to roughly machine precision */
+
+#ifdef NOSCALE
+#warning Linear scaling of fitnesses disabled
+#endif
+
+#ifdef NOTRUNC
+#warning Sigma truncation disabled
+#endif
 
 #ifdef CROSS2
 #warning Using 2-point crossover
@@ -17,20 +27,101 @@
 
 dsfmt_t dsfmt;
 
-/* comparison function used by rank */
-int cmp_index(void *thunk, const void *a, const void *b) {
-    double *arr = (double*) thunk;
-    int ia = *(int*)a, ib = *(int*)b;
-    return (arr[ia] - arr[ib] < 0.) ? 1 : -1;   /* largest first */
+#ifndef NOTRUNC
+/*
+ * "Sigma truncation" (Goldberg 124)--translate fitness values to make the
+ * average c*sigma + delta, then set negative values to zero.
+ * Nonzero delta avoids issues when fitness values are all equal
+ */
+static void sigmatrunc(double x[], int len, double c, double delta,
+                       double *avg, double *var, double *min, double *max)
+{
+    double shift, y;
+    int i;
+
+    shift = c*sqrt(*var) - *avg + delta;
+
+    *avg = *var = 0.;
+    *max += shift;
+    if ((*min += shift) < 0.) *min = 0.;
+
+    for (i = 0; i < len; i++)
+    {
+        if ((y = x[i] + shift) < 0.) y = 0.;
+        else { *avg += y; *var += y*y; }
+        x[i] = y;
+    }
+
+    *avg /= len;
+    *var = *var/len - (*avg)*(*avg);
+}
+#endif
+
+#ifndef NOSCALE
+/* do linear scaling of fitnesses as described in Goldberg pp. 78-79 */
+static void linscale(double x[], int len, double mult,
+                     double *avg, double *var, double *min, double *max)
+{
+    double delta, a, b;
+    int i;
+
+    /* determine linear scaling coefficients */
+    /* non-negative test */
+    if (*min > (mult * (*avg) - (*max)) / (mult - 1.))
+    {
+        /* normal scaling */
+        delta = *max - *avg;
+        a = (mult - 1.) * (*avg) / delta;
+        b = *avg * ((*max) - mult*(*avg)) / delta;
+    }
+    else
+    {
+        /* scale as much as possible */
+        delta = *avg - *min;
+        a = *avg / delta;
+        b = -(*avg) * (*min) / delta;
+    }
+
+    /* apply scaling and calculate new variance (average is unchanged) */
+    for (i = 0; i < len; i++) x[i] = a*x[i] + b;
+    *max = a * (*max) + b;
+    *min = a * (*min) + b;
+    *var = (a*a - 1)*(*avg)*(*avg) + 2*a*b*(*avg) + a*a*(*var) + b*b;
+}
+#endif
+
+/* return the insertion point for x to maintain sorted order of a */
+static int bisect(double a[], double x, int l, int r)
+{
+    int mid;
+
+    while (r-l > 1)
+    {
+        mid = (l+r)/2;
+        if (a[mid] < x) l = mid;
+        else r = mid;
+    }
+
+    return (x < a[l]) ? l : r;
 }
 
-/* rank fitnesses and create a table of indices by rank */
-static void rank(int index[], double fitness[], int n)
+/*
+ * Select an individual from the population with probability proportional to
+ * its fitness. First determine partitions by calling `preselect'.
+ */
+static int select_mate(double parts[], int popsize)
+{
+    return bisect(parts, RANDOM(), 0, popsize);
+}
+
+/* compute partitions for roulette-wheel selection */
+static void preselect(double fitness[], double parts[],
+                      double sumfitness, int popsize)
 {
     int i;
 
-    i = n; while (--i) index[i] = i; index[0] = 0;
-    qsort_r(index, n, sizeof(int), fitness, cmp_index);
+    parts[0] = fitness[0] / sumfitness;
+    for (i = 1; i < popsize; i++) parts[i] = parts[i-1] + fitness[i]/sumfitness;
 }
 
 /*
@@ -146,11 +237,18 @@ void update_stats(double (*objfunc)(GA_allele_t*), double (*fitfunc)(double),
 
     *avg /= popsize;
     *var = *var / popsize - (*avg)*(*avg);
+
+#ifndef NOTRUNC
+    sigmatrunc(fitness, popsize, C, DELTA, avg, var, min, max);
+#endif
+#ifndef NOSCALE
+    if (*var > EPSILON) linscale(fitness, popsize, FMULT, avg, var, min, max);
+#endif
 }
 
 void GA_init(GA_t *ga, int popsize, int lchrom,
               double (*objfunc)(GA_allele_t*), double (*fitfunc)(double),
-              int k, double pcross, double pmutate, uint32_t seed)
+              double pcross, double pmutate, uint32_t seed)
 {
     int i, j;
 
@@ -160,7 +258,6 @@ void GA_init(GA_t *ga, int popsize, int lchrom,
     ga->lchrom  = lchrom;
     ga->objfunc = objfunc;
     ga->fitfunc = fitfunc;
-    ga->k = k;
     ga->pcross  = pcross;
     ga->pmutate = pmutate;
 
@@ -185,20 +282,20 @@ void GA_init(GA_t *ga, int popsize, int lchrom,
 void GA_advance(GA_t *ga, int *ncross, int *nmutation)
 {
     GA_allele_t (*swap)[GA_MAXPOPSIZE];
-    int index[GA_MAXPOPSIZE];
-    int i, r, mate1, mate2;
+    double parts[GA_MAXPOPSIZE];
+    int i, mate1, mate2;
 
     *ncross    = 0;
     *nmutation = 0;
 
-    rank(index, ga->fitness, ga->popsize);
+    preselect(ga->fitness, parts, ga->popsize * ga->favg, ga->popsize);
 
     /* create new generation using crossover and mutation */
     for (i = 0; i < ga->popsize; i += 2)
     {
-        /* select mates from k fittest individuals */
-        r = (int) RND(0, ga->k); mate1 = index[r];
-        r = (int) RND(0, ga->k); mate2 = index[r];
+        /* select mates with probability proportional to fitness */
+        mate1 = select_mate(parts, ga->popsize);
+        mate2 = select_mate(parts, ga->popsize);
 
         /* do crossover with probability pcross */
 #ifndef CROSS2

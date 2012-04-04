@@ -29,23 +29,24 @@ int main(int argc, char *argv[])
     char filename[64];
     double pcross, pmutate;
     int sp[NED];
-    int popsize, igen, ngen, ncross, nmutation, seed;
+    int popsize, k, igen, ngen, ncross, nmutation, seed;
 
-    if (argc != 6)
+    if (argc != 7)
     {
-        fprintf(stderr, "Usage: %s popsize pcross pmutate ngen seed\n", argv[0]);
+        fprintf(stderr, "Usage: %s popsize k pcross pmutate ngen seed\n", argv[0]);
         fprintf(stderr, "Compiled for (%d, %d, %d)\n", R, S, NV);
         exit(EXIT_FAILURE);
     }
 
     popsize = atoi(argv[1]);
-    pcross  = atof(argv[2]);
-    pmutate = atof(argv[3]);
-    ngen    = atoi(argv[4]);
-    seed    = atoi(argv[5]);
+    k       = atoi(argv[2]);
+    pcross  = atof(argv[3]);
+    pmutate = atof(argv[4]);
+    ngen    = atoi(argv[5]);
+    seed    = atoi(argv[6]);
 
     R_init(seed);
-    GA_init(&ga, popsize, NED, objfunc, fitfunc, pcross, pmutate, seed);
+    GA_init(&ga, popsize, NED, objfunc, fitfunc, k, pcross, pmutate, seed);
     sprintf(filename, "%d-%d-%d_%d.graph", R, S, NV, seed);
 
     for (igen = 0; igen <= ngen; igen++)
