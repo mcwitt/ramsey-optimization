@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include "ramsey.h"
-#include "ga_roulette.h"
+#include "ga_r.h"
 
 void decode(GA_allele_t chrom[], int sp[])
 {

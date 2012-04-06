@@ -1,4 +1,5 @@
-/* Genetic algorithm based on Goldberg's "Simple Genetic Algorithm"
+/* Genetic algorithm based on Goldberg's "Simple Genetic Algorithm".
+ * Uses roulette-wheel selection.
  *
  * Author: Matt Wittmann <mwittman@ucsc.edu>
  *

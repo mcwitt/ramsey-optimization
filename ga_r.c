@@ -3,7 +3,7 @@
 #include <assert.h>
 #include <math.h>
 #include "dSFMT.h"
-#include "ga_roulette.h"
+#include "ga_r.h"
 
 #define FMULT   2.0     /* linear scaling parameter */
 #define C       2.0     /* sigma truncation parameter */
