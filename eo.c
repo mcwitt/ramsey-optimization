@@ -117,7 +117,6 @@ int main(int argc, char *argv[])
     {
         R_randomize(&r, (double) R/(R+S), mask);
         emin_run = r.en;
-        if (emin_run < emin) emin = emin_run;
 
         printf("# %3s %10s %6s ( %10s %6s )\n",
                 "run", "nflip/NED", "emin", "nflip/NED", "emin");
