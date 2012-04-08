@@ -67,14 +67,14 @@ int main(int argc, char *argv[])
     char filename[64];
     double tau;         /* distribution parameter */
     double cdf[NED];    /* cumulative distribution for P(k) = 1/k^tau */
+    double nflip = 0.;
     int lambda[NED];    /* fitness values */
-    int nsweep, nrun, isweep, isweep_tot, irun, iupdate, j, k,
-        emin, emin_run, mask;
+    int nsweep, isweep, iupdate, j, k, mask;
     uint32_t seed;
 
-    if (argc != 5 && argc != 6)
+    if (argc != 4 && argc != 5)
     {
-        fprintf(stderr, "Usage: %s tau nsweep nrun seed [partial_config]\n"\
+        fprintf(stderr, "Usage: %s tau nsweep seed [partial_config]\n"\
                 "Each \"sweep\" consists of NED iterations\n", argv[0]);
         fprintf(stderr, "Compiled for (%d, %d, %d)\n", R, S, NV);
         exit(EXIT_FAILURE);
@@ -82,8 +82,7 @@ int main(int argc, char *argv[])
 
     tau = atof(argv[1]);
     nsweep = atoi(argv[2]);
-    nrun = atoi(argv[3]);
-    seed = atoi(argv[4]);
+    seed = atoi(argv[3]);
 
     sprintf(filename, "%d-%d-%d_%d.graph", R, S, NV, seed);
     
@@ -91,7 +90,7 @@ int main(int argc, char *argv[])
     dsfmt_init_gen_rand(&dsfmt, seed);
     set_cdf(tau, cdf);
 
-    if (argc == 6)
+    if (argc == 5)
     {
         /*
          * load configuration from file and set mask to prevent spins
@@ -99,7 +98,7 @@ int main(int argc, char *argv[])
          * iteration
          */
 
-        mask = R_init_replica_from_file(&r, argv[5]);
+        mask = R_init_replica_from_file(&r, argv[4]);
         fprintf(stderr, "Starting from configuration in %s. Mask = %d\n",
                 filename, mask);
         assert(mask < NED);
@@ -110,16 +109,9 @@ int main(int argc, char *argv[])
         mask = 0;
     }
 
-    emin = INT_MAX;
-    isweep_tot = 0;
-
-    for (irun = 0; irun < nrun; irun++)
+    while (r.en > 0)
     {
         R_randomize(&r, (double) R/(R+S), mask);
-        emin_run = r.en;
-
-        printf("# %3s %10s %6s ( %10s %6s )\n",
-                "run", "nflip/NED", "emin", "nflip/NED", "emin");
 
         for (isweep = 0; isweep < nsweep; isweep++)
         {
@@ -135,34 +127,21 @@ int main(int argc, char *argv[])
                 j = qselect_index(k, NED, lambda);
                 r.en += lambda[j];
                 R_flip(&r, j);
+                nflip += 1.;
 
-                if (r.en < emin_run)
+                if (r.en < WRITE_MAX)
                 {
-                    emin_run = r.en;
-
-                    if (emin_run < emin)
-                    {
-                        emin = emin_run;
-
-                        if (emin < WRITE_MAX)
-                        {
-                            R_save_graph(r.sp, filename);
-                            if (emin == 0) break;
-                        }
-                    }
+                    R_save_graph(r.sp, filename);
+                    if (r.en == 0) break;
                 }
             }
 
-            printf("%5d %10d %6d   %10d %6d\n",
-                    irun, isweep+1, emin_run, ++isweep_tot, emin);
-            fflush(stdout);
-            if (emin == 0) break;
-
+            if (r.en == 0) break;
         }
-
-        if (emin == 0) break;
     }
 
+    printf("%g\n", nflip/NED);
+
     R_finalize();
-    return (emin == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
+    return EXIT_SUCCESS;
 }

@@ -47,17 +47,14 @@ int main(int argc, char *argv[])
 {
     char filename[64];
     double sweep_mult, nflip = 0.;
-    int nsweep_min, nsweep_max, nstage, nrun;
-    int irun, isweep;
-    int nsweep, nflip_stage, nflip_sweep = 0;
-    int emax_demon, e_demon_av, emin, emin_stage;
-    int mask;
+    int nsweep_min, nsweep_max, nsweep, nstage, isweep, emax_demon, mask,
+        nflip_sweep = 0;
     uint32_t seed;
 
-    if (argc != 6 && argc != 7)
+    if (argc != 5 && argc != 6)
     {
         fprintf(stderr, "Usage: %s nsweep_min nsweep_max"
-                " nstage nrun seed [partial_config]\n", argv[0]);
+                " nstage seed [partial_config]\n", argv[0]);
         fprintf(stderr, "Compiled for (%d, %d, %d)\n", R, S, NV);
         exit(EXIT_FAILURE);
     }
@@ -65,15 +62,14 @@ int main(int argc, char *argv[])
     nsweep_min = atoi(argv[1]);
     nsweep_max = atoi(argv[2]);
     nstage = atoi(argv[3]);
-    nrun = atoi(argv[4]);
-    seed = atoi(argv[5]);
+    seed = atoi(argv[4]);
 
     sweep_mult = pow((double) nsweep_max / nsweep_min, 1./nstage);
     sprintf(filename, "%d-%d-%d_%d.graph", R, S, NV, seed);
     
     R_init(seed);
 
-    if (argc == 7)
+    if (argc == 6)
     {
         /*
          * load configuration from file and set mask to prevent spins
@@ -81,7 +77,7 @@ int main(int argc, char *argv[])
          * iteration
          */
 
-        mask = R_init_replica_from_file(&r, argv[6]);
+        mask = R_init_replica_from_file(&r, argv[5]);
         fprintf(stderr, "Starting from configuration in %s. Mask = %d\n",
                 filename, mask);
         assert(mask < NED);
@@ -92,70 +88,35 @@ int main(int argc, char *argv[])
         mask = 0;
     }
 
-    emin = INT_MAX;
-
-    for (irun = 0; irun < nrun; irun++)
+    while (r.en > 0)
     {
         R_randomize(&r, (double) R/(R+S), mask);   /* randomize free spins */
         nsweep = nsweep_min;
         e_demon = emax_demon = nstage;
 
-        /* print column names */
-        printf("# %3s %8s %12s %12s %8s %10s %12s ( %10s %8s )\n",
-            "run", "nsweep", "emax_demon", "e_demon_av",
-            "a.r.", "nflip/NED", "emin_stage", "nflip/NED", "emin");
-
         while (emax_demon >= 0)
         {
-            nflip_stage = 0;
-            e_demon_av = 0;
-            emin_stage = INT_MAX;
-
             for (isweep = 0; isweep < nsweep; isweep++)
             {
                 nflip_sweep = sweep(emax_demon);
-                e_demon_av += e_demon;
                 if (nflip_sweep == 0) break;
-                nflip_stage += nflip_sweep;
+                nflip += (double) nflip_sweep;
 
-                if (r.en < emin_stage)
+                if (r.en < WRITE_MAX)
                 {
-                    emin_stage = r.en;
-
-                    if (emin_stage < emin)
-                    {
-                        emin = emin_stage;
-
-                        if (emin < WRITE_MAX)
-                        {
-                            R_save_graph(r.sp, filename);
-                            if (emin == 0) break;
-                        }
-                    }
+                    R_save_graph(r.sp, filename);
+                    if (r.en == 0) break;
                 }
             }
 
-            nflip += (double) nflip_stage;
-
-            /* print stage stats */
-            printf("%5d %8d %12d %12.2f %8.5f %10.2f %12d   %10g %8d\n",
-                    irun, nsweep, emax_demon,
-                    (double) e_demon_av/(isweep+1),
-                    (double) nflip_stage/NED/(isweep+1),
-                    (double) nflip_stage/NED,
-                    emin_stage,
-                    (double) nflip/NED,
-                    emin);
-            fflush(stdout);
-
-            if ((emin == 0) || (nflip_sweep == 0)) break;
+            if ((r.en == 0) || (nflip_sweep == 0)) break;
             nsweep *= sweep_mult;
             emax_demon -= 1;
         }
-
-        if (emin == 0) break;
     }
 
+    printf("%g\n", nflip/NED);
+
     R_finalize();
-    return (emin == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
+    return EXIT_SUCCESS;
 }
