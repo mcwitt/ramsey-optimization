@@ -21,21 +21,21 @@
 #define RND(l, u) (u-l)*RANDOM() + l
 
 dsfmt_t dsfmt;
+double *pfitness;
 
-/* comparison function used by rank */
-int cmp_index(void *thunk, const void *a, const void *b) {
-    double *arr = (double*) thunk;
+int cmp_fitness(const void *a, const void *b) {
     int ia = *(int*)a, ib = *(int*)b;
-    return (arr[ia] - arr[ib] < 0.) ? 1 : -1;   /* largest first */
+    return (pfitness[ia] - pfitness[ib] < 0.) ? 1 : -1;   /* largest first */
 }
 
-/* rank fitnesses high to low and create a table of indices by rank */
+/* rank individuals by fitness */
 static void rank(int index[], double fitness[], int n)
 {
     int i;
 
+    pfitness = fitness;
     i = n; while (--i) index[i] = i; index[0] = 0;
-    qsort_r(index, n, sizeof(int), fitness, cmp_index);
+    qsort(index, n, sizeof(int), cmp_fitness);
 }
 
 /*
