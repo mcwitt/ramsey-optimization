@@ -68,12 +68,13 @@ int main(int argc, char *argv[])
     double tau;         /* distribution parameter */
     double cdf[NED];    /* cumulative distribution for P(k) = 1/k^tau */
     int lambda[NED];    /* fitness values */
-    int nsweep, isweep, iupdate, j, k, emin;
+    int nsweep, nrun, isweep, isweep_tot, irun, iupdate, j, k,
+        emin, emin_run, mask;
     uint32_t seed;
 
-    if (argc != 4 && argc != 5)
+    if (argc != 5 && argc != 6)
     {
-        fprintf(stderr, "Usage: %s tau nsweep seed [partial_config]\n"\
+        fprintf(stderr, "Usage: %s tau nsweep nrun seed [partial_config]\n"\
                 "Each \"sweep\" consists of NED iterations\n", argv[0]);
         fprintf(stderr, "Compiled for (%d, %d, %d)\n", R, S, NV);
         exit(EXIT_FAILURE);
@@ -81,7 +82,8 @@ int main(int argc, char *argv[])
 
     tau = atof(argv[1]);
     nsweep = atoi(argv[2]);
-    seed = atoi(argv[3]);
+    nrun = atoi(argv[3]);
+    seed = atoi(argv[4]);
 
     sprintf(filename, "%d-%d-%d_%d.graph", R, S, NV, seed);
     
@@ -89,49 +91,76 @@ int main(int argc, char *argv[])
     dsfmt_init_gen_rand(&dsfmt, seed);
     set_cdf(tau, cdf);
 
-    if (argc == 5)
-    {   /* load configuration from file */
-        R_init_replica_from_file(&r, argv[4]);
-        printf("Starting from configuration in %s\n", filename);
+    if (argc == 6)
+    {
+        /*
+         * load configuration from file and set mask to prevent spins
+         * specified in the input file from being randomized before each
+         * iteration
+         */
+
+        mask = R_init_replica_from_file(&r, argv[5]);
+        printf("Starting from configuration in %s. Mask = %d\n",
+                filename, mask);
+        assert(mask < NED);
     }
     else
     {
         R_init_replica(&r);
-        R_randomize(&r, (double) R/(R+S), 0);
+        mask = 0;
     }
 
     emin = INT_MAX;
-    printf("# %10s %8s %6s\n", "nflip/NED", "energy", "emin");
+    isweep_tot = 0;
 
-    for (isweep = 0; isweep < nsweep; isweep++)
+    for (irun = 0; irun < nrun; irun++)
     {
-        for (iupdate = 0; iupdate < NED; iupdate++)
+        R_randomize(&r, (double) R/(R+S), mask);
+        emin_run = r.en;
+        if (emin_run < emin) emin = emin_run;
+
+        printf("# %3s %10s %6s ( %10s %6s )\n",
+                "run", "nflip/NED", "emin", "nflip/NED", "emin");
+
+        for (isweep = 0; isweep < nsweep; isweep++)
         {
-            /* compute fitness value (i.e. energy to flip) for each spin */
-            for (j = 0; j < NED; j++) lambda[j] = r.sp[j]*r.h2[j];
-
-            /* choose random integer k in [0..NED-1] from distribution */
-            k = bisect(cdf, RANDOM(), 0, NED);
-
-            /* flip the kth "worst" spin */
-            j = qselect_index(k, NED, lambda);
-            r.en += lambda[j];
-            R_flip(&r, j);
-
-            if (r.en < emin)
+            for (iupdate = 0; iupdate < NED; iupdate++)
             {
-                emin = r.en;
+                /* compute fitness value (i.e. energy to flip) for each spin */
+                for (j = 0; j < NED; j++) lambda[j] = r.sp[j]*r.h2[j];
 
-                if (emin < WRITE_MAX)
+                /* choose random integer k in [0..NED-1] from distribution */
+                k = bisect(cdf, RANDOM(), 0, NED);
+
+                /* flip the kth "worst" spin */
+                j = qselect_index(k, NED, lambda);
+                r.en += lambda[j];
+                R_flip(&r, j);
+
+                if (r.en < emin_run)
                 {
-                    R_save_graph(r.sp, filename);
-                    if (emin == 0) break;
+                    emin_run = r.en;
+
+                    if (emin_run < emin)
+                    {
+                        emin = emin_run;
+
+                        if (emin < WRITE_MAX)
+                        {
+                            R_save_graph(r.sp, filename);
+                            if (emin == 0) break;
+                        }
+                    }
                 }
             }
+
+            printf("%5d %10d %6d   %10d %6d\n",
+                    irun, isweep+1, emin_run, ++isweep_tot, emin);
+            fflush(stdout);
+            if (emin == 0) break;
+
         }
 
-        printf("%12d %8d %6d\n", isweep, r.en, emin);
-        fflush(stdout);
         if (emin == 0) break;
     }
 

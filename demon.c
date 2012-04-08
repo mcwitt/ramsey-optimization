@@ -96,14 +96,14 @@ int main(int argc, char *argv[])
 
     for (irun = 0; irun < nrun; irun++)
     {
-        /* print column names */
-        printf("# %3s %8s %12s %12s %8s %10s %12s | %10s %8s\n",
-            "run", "nsweep", "emax_demon", "e_demon_av",
-            "a.r.", "nflip/NED", "emin_stage", "nflip//NED", "emin");
-
         R_randomize(&r, (double) R/(R+S), mask);   /* randomize free spins */
         nsweep = nsweep_min;
         e_demon = emax_demon = nstage;
+
+        /* print column names */
+        printf("# %3s %8s %12s %12s %8s %10s %12s ( %10s %8s )\n",
+            "run", "nsweep", "emax_demon", "e_demon_av",
+            "a.r.", "nflip/NED", "emin_stage", "nflip/NED", "emin");
 
         while (emax_demon >= 0)
         {
@@ -138,13 +138,13 @@ int main(int argc, char *argv[])
             nflip += nflip_stage;
 
             /* print stage stats */
-            printf("%5d %8d %12d %12.2f %8.5f %10.2f %12d | %10d %8d\n",
+            printf("%5d %8d %12d %12.2f %8.5f %10.2f %12d   %10g %8d\n",
                     irun, nsweep, emax_demon,
                     (double) e_demon_av/(isweep+1),
                     (double) nflip_stage/NED/(isweep+1),
                     (double) nflip_stage/NED,
                     emin_stage,
-                    nflip/NED,
+                    (double) nflip/NED,
                     emin);
             fflush(stdout);
 
