@@ -22,8 +22,6 @@
 #error Must have NED <= QSELECT_MAXLEN
 #endif
 
-#define WRITE_MAX 10  /* only save graph when energy is below this value */
-
 #define RANDOM() dsfmt_genrand_close_open(&dsfmt)
 
 R_replica_t r;
@@ -40,11 +38,6 @@ void set_cdf(double tau, double cdf[])
     for (k = 0; k < NED; k++) { cdf[k] = pow(k+1, -tau); sum += cdf[k]; }
     cdf[0] /= sum;
     for (k = 1; k < NED; k++) cdf[k] = cdf[k-1] + cdf[k]/sum;
-
-    /*debug
-    for (k = 0; k < NED; k++)
-        printf("%f\n",cdf[k]);
-    exit(0);*/
 }
 
 /* return the insertion point for x to maintain sorted order of a */
@@ -128,12 +121,7 @@ int main(int argc, char *argv[])
                 r.en += lambda[j];
                 R_flip(&r, j);
                 nflip += 1.;
-
-                if (r.en < WRITE_MAX)
-                {
-                    R_save_graph(r.sp, filename);
-                    if (r.en == 0) break;
-                }
+                if (r.en == 0) break;
             }
 
             if (r.en == 0) break;
@@ -141,7 +129,7 @@ int main(int argc, char *argv[])
     }
 
     printf("%g\n", nflip/NED);
-
+    R_save_graph(r.sp, filename);
     R_finalize();
     return EXIT_SUCCESS;
 }

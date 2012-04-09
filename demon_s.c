@@ -17,8 +17,6 @@
 #include <stdlib.h>
 #include "ramsey.h"
 
-#define WRITE_MAX 10  /* only save graph when energy is below this value */
-
 R_replica_t r;
 int e_demon;
 
@@ -101,12 +99,7 @@ int main(int argc, char *argv[])
                 nflip_sweep = sweep(emax_demon);
                 if (nflip_sweep == 0) break;
                 nflip += (double) nflip_sweep;
-
-                if (r.en < WRITE_MAX)
-                {
-                    R_save_graph(r.sp, filename);
-                    if (r.en == 0) break;
-                }
+                if (r.en == 0) break;
             }
 
             if ((r.en == 0) || (nflip_sweep == 0)) break;
@@ -116,7 +109,7 @@ int main(int argc, char *argv[])
     }
 
     printf("%g\n", nflip/NED);
-
+    R_save_graph(r.sp, filename);
     R_finalize();
     return EXIT_SUCCESS;
 }
