@@ -111,5 +111,6 @@ int main(int argc, char *argv[])
     printf("%g\n", nflip/NED);
     R_save_graph(r.sp, filename);
     R_finalize();
+
     return EXIT_SUCCESS;
 }
