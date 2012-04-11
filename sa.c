@@ -87,7 +87,7 @@ int main(int argc, char *argv[])
          * iteration
          */
 
-        mask = R_init_replica_from_file(&r, argv[7]);
+        mask = R_init_replica_from_file(&r, argv[8]);
         printf("Starting from configuration in %s. Mask = %d\n",
                 filename, mask);
         assert(mask < NED);

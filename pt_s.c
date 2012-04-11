@@ -124,8 +124,7 @@ int main(int argc, char *argv[])
     if (argc == 4) /* initial configuration specified */
     {
         R_init_replica_from_file(reps, argv[3]);
-        for (iT = 0; iT < nT; iT++)
-            reps[iT] = reps[0];
+        for (iT = 0; iT < nT; iT++) reps[iT] = reps[0];
     }
     else for (iT = 0; iT < nT; iT++)
     {
