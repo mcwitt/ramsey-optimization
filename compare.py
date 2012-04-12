@@ -3,8 +3,7 @@ from pylab import *
 files = [
         ['pt30_T2', 'pt31_T2', 'pt32_T2', 'pt33_T2'],
         ['sa30_1-0.1-10-10-5', 'sa31_1-0.1-10-50-5', 'sa32_1-0.1-10-100-15', 'sa33_1-0.2-300-1000-25'],
-        ['de30_100-100-1', 'de31_100-100-1', 'de32_100-200-2', 'de33_300-3000-10'],
-        #['de30_100-100-1', 'de31_100-100-1', 'de32_100-200-2', 'de33_1000-10000-12'],
+        ['de30_100-100-1', 'de31_100-100-1', 'de32_100-200-2', 'de33_1000-10000-12'],
         ['eo30_1.6-100000', 'eo31_1.6-100000', 'eo32_1.6-100000', 'eo33_1.6-100000']
         ]
 
@@ -39,6 +38,6 @@ xticks(sizes)
 legend(loc='upper left')
 text(0.8, 0.2, r'$N_{\mathrm{samp}}=96$', transform=ax.transAxes)
 xlabel('$N_v$')
-ylabel('number of spin flips to find ground state')
+ylabel('$N_{\mathrm{flip}}/N_{\mathrm{edge}}$ to find ground state')
 title('Performance of various searches on (4, 6; $N_v$)')
 show()
