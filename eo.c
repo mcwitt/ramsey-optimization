@@ -40,11 +40,6 @@ void set_cdf(double tau, double cdf[])
     for (k = 0; k < NED; k++) { cdf[k] = pow(k+1, -tau); sum += cdf[k]; }
     cdf[0] /= sum;
     for (k = 1; k < NED; k++) cdf[k] = cdf[k-1] + cdf[k]/sum;
-
-    /*debug
-    for (k = 0; k < NED; k++)
-        printf("%f\n",cdf[k]);
-    exit(0);*/
 }
 
 /* return the insertion point for x to maintain sorted order of a */

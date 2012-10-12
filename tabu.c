@@ -34,9 +34,7 @@ void tabu_add(tabu_t *tl, tabu_elem_t *el)
     /* ... */
 }
 
-int main()
+int tabu_look(tabu_t *tl, tabu_elem_t *el)
 {
-    char filename[256];
-
-    return EXIT_SUCCESS;
 }
+
